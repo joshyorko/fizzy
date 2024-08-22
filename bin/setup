@@ -2,7 +2,7 @@
 set -eo pipefail
 
 app_root="$( cd "$(dirname "$0")/.."; pwd )"
-app_name="splat"
+app_name="fizzy"
 
 # Use application binstubs
 export PATH="$app_root/bin:$PATH"
@@ -15,7 +15,6 @@ announce() {
 announce "Installing dependencies"
 gem install bundler --conservative
 bundle check || bundle install
-
 
 if [[ $* == *--reset* ]]; then
   announce "Recreating database"
