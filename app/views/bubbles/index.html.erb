@@ -31,7 +31,7 @@
               data-dialog-modal-value="true"><%= @bucket.name %></button>
           <dialog class="filter__popup panel fill-white shadow" data-dialog-target="dialog">
             <menu class="filter__menu flex flex-column gap-half unpad margin-none txt-medium">
-              <% Bucket.all.each do |bucket| %>
+              <% Current.user.buckets.order(:name).each do |bucket| %>
                 <li><button class="btn btn--plain filter__button"><%= bucket.name %></button></li>
               <% end %>
             </menu>
@@ -49,7 +49,7 @@
                 data-dialog-modal-value="true"><%= @tag.title %></button>
             <dialog class="filter__popup panel fill-white shadow" data-dialog-target="dialog">
               <menu class="filter__menu flex flex-column gap-half unpad margin-none txt-medium">
-                <% Tag.all.each do |tag| %>
+                <% Current.account.tags.order(:title).each do |tag| %>
                   <li><button class="btn btn--plain filter__button"><%= tag.title %></button></li>
                 <% end %>
               </menu>
@@ -69,7 +69,7 @@
                 data-dialog-modal-value="true">any tag</button>
             <dialog class="filter__popup panel fill-white shadow" data-dialog-target="dialog">
               <menu class="filter__menu flex flex-column gap-half unpad margin-none txt-medium">
-                <% Tag.all.each do |tag| %>
+                <% Current.account.tags.order(:title).each do |tag| %>
                   <li><button class="btn btn--plain filter__button"><%= tag.title %></button></li>
                 <% end %>
               </menu>
@@ -83,7 +83,7 @@
               data-dialog-modal-value="true">assigned to anyone</button>
           <dialog class="filter__popup panel fill-white shadow" data-dialog-target="dialog">
             <menu class="filter__menu flex flex-column gap-half unpad margin-none txt-medium">
-              <% User.all.each do |user| %>
+              <% Current.account.users.order(:name).each do |user| %>
                 <li><button class="btn btn--plain filter__button"><%= user.name %></button></li>
               <% end %>
             </menu>
