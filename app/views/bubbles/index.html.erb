@@ -1,7 +1,7 @@
 <% @page_title = @filter.plain_summary %>
 
 <% content_for :header do %>
-  <nav>
+  <nav class="align-start">
     <%= link_to root_path, class: "btn btn--plain flex-item-justify-start" do %>
       <%= image_tag "bubbles.svg", aria: { hidden: true }, size: 24 %>
       <span class="for-screen-reader">All Projects</span>
