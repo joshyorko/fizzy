@@ -9,16 +9,18 @@
     </div>
   <% end %>
 
-  <nav class="align-start">
-    <header class="flex flex-column center">
+  <nav class="align-start max-width">
+    <header class="flex flex-column center max-width">
       <div class="flex align-center gap justify-center">
         <%= link_to "Projects", root_path %>
         <%= link_to "Activity", events_path %>
       </div>
-      <h1 class="txt-x-large breadcrumbs">
-        <%= link_to @bucket.name, bubbles_path(bucket_ids: [ @bucket ]) %>
+      <h1 class="txt-large txt-align-center min-width flex align-center gap-half">
+        <span class="overflow-ellipsis">
+          <%= link_to @bucket.name, bubbles_path(bucket_ids: [ @bucket ]) %>
+        </span>
         <span class="flex-item-no-shrink">▸</span>
-        <strong><%= @page_title %></strong>
+        <strong class="overflow-ellipsis"><%= @page_title %></strong>
       </h1>
     </header>
   </nav>
