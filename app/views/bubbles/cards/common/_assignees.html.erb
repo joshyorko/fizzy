@@ -1,6 +1,6 @@
 <div class="flex" id="<%= dom_id(bubble, :assignees) %>">
   <% bubble.assignees.each do |assignee| %>
-    <%= avatar_tag assignee, loading: :lazy, class: "avatar" %>
+    <%= avatar_tag assignee, class: "avatar" %>
   <% end %>
 
   <div class="position-relative" data-controller="dialog" data-action="keydown.esc->dialog#close click@document->dialog#closeOnClickOutside">
