@@ -194,12 +194,3 @@
   }
 }
 
-.btn--dialog {
-  .icon--caret-down {
-    font-size: 1ch;
-  }
-
-  + .popup {
-    margin-top: var(--btn-size);
-  }
-}

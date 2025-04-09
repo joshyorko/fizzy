@@ -5,8 +5,8 @@
       <span>Un-do</span>
     <% end %>
   <% else %>
-    <div class="flex-inline center position-relative" data-controller="dialog" data-action="keydown.esc->dialog#close click@document->dialog#closeOnClickOutside">
-      <details class="expander">
+    <div class="flex-inline center position-relative">
+      <details class="expander" data-controller="details" data-details-target="details" data-action="keydown.esc->details#close click@document->details#closeOnClickOutside">
         <summary class="expander__button btn borderless">
           Close as
           <%= icon_tag "caret-down" %>

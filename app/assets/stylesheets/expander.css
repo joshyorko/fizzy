@@ -46,6 +46,10 @@
   flex-direction: column;
   gap: 0;
   padding-block-start: var(--expander-height);
+
+  &:hover {
+    box-shadow: none;
+  }
 }
 
 /* For browsers that support animation */
@@ -56,6 +60,7 @@
     block-size: var(--expander-height);
     border-radius: var(--expander-radius);
     inset: 0 auto auto 0;
+    inline-size: var(--expander-width);
     overflow: clip;
     position: absolute;
     transition: content-visibility var(--expander-duration) allow-discrete, block-size var(--expander-duration), inline-size var(--expander-duration);
@@ -64,12 +69,9 @@
   .expander[open]::details-content {
     block-size: auto;
     inline-size: auto;
-
-    box-shadow: 0 0 0 var(--hover-size) var(--hover-color);
   }
 
   .expander__content {
-    inline-size: var(--expander-width);
     min-inline-size: var(--expander-width);
   }
 }
@@ -84,7 +86,6 @@
 
     [open] & {
       block-size: auto;
-      box-shadow: 0 0 0 var(--hover-size) var(--hover-color);
       inline-size: auto;
     }
   }
@@ -99,7 +100,7 @@
   --hover-size: 0;
   --outline-color: transparent;
 
-  inline-size: calc(100% + var(--inline-space) * 2);
+  inline-size: calc(100% + var(--inline-space-double));
   margin-inline-start: calc(-1 * var(--inline-space));
   justify-content: flex-start;
   white-space: nowrap;
