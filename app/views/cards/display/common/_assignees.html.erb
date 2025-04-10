@@ -9,6 +9,8 @@
       <span class="for-screen-reader">Assign</span>
     </button>
 
-    <%= yield %>
+    <dialog class="popup panel flex-column align-start gap-half fill-white shadow" data-dialog-target="dialog">
+      <%= yield %>
+    </dialog>
   </div>
 </div>
