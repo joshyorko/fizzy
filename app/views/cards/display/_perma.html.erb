@@ -1,7 +1,5 @@
 <% cache card do %>
-  <article class="card shadow border flex flex-column position-relative txt-align-start border-radius <%= 'card--golden' if card.golden? %>"
-      style="--card-color: <%= card.color %>; view-transition-name: <%= dom_id(card, :ticket) %>;"
-      id="<%= dom_id(card, :ticket) %>">
+  <%= card_article_tag card, class: "card shadow border flex flex-column position-relative txt-align-start border-radius" do %>
     <header class="card__header flex align-center gap min-width">
       <%= link_to card.collection.name, cards_path(collection_ids: [card.collection]),
             class: "card__collection txt-uppercase overflow-ellipsis txt-reversed" %>
@@ -39,5 +37,5 @@
     </footer>
 
     <%= render "cards/display/common/background", card: card %>
-  </article>
+  <% end %>
 <% end %>

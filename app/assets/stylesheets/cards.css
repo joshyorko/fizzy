@@ -97,12 +97,12 @@
     }
   }
 
-  .card--golden {
+  .card--golden.card--doing {
     --border-color: var(--color-bg) !important;
 
     background-color: var(--color-bg);
     background-image: linear-gradient(90deg, oklch(var(--lch-golden) / 0.5) 0%, oklch(var(--lch-golden) / 0.1) 50%, oklch(var(--lch-golden) / 0.75) 100%);
-    box-shadow: 
+    box-shadow:
       0 0 0.5em 0.2em var(--color-golden),
       0 0 1em 0.4em var(--color-golden) !important;
     outline: 1px solid var(--color-golden);
@@ -154,7 +154,7 @@
     &.card__actions-container--top {
       margin: calc(var(--block-space) * 1) auto calc(var(--block-space) * -0.66);
       min-inline-size: 30ch;
-  
+
       #header:has(&) {
         position: relative;
         z-index: 1;

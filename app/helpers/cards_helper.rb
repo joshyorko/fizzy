@@ -26,4 +26,19 @@ module CardsHelper
       class: "btn txt-small",
       **options
   end
+
+  def card_article_tag(card, id: dom_id(card, :ticket), **options, &block)
+    classes = [
+      options.delete(:class),
+      ("card--golden" if card.golden?),
+      ("card--doing" if card.doing?)
+    ].compact.join(" ")
+
+    tag.article \
+      id: id,
+      style: "--card-color: #{card.color}; view-transition-name: #{id}",
+      class: classes,
+      **options,
+      &block
+  end
 end
