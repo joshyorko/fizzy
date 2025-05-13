@@ -37,6 +37,12 @@ export default class extends Controller {
     })
   }
 
+  refreshTarget(event) {
+    const target = event.target;
+    const targetName = target.dataset.localTimeTarget
+    this.#formatTime(this[`${targetName}Formatter`], target)
+  }
+
   timeTargetConnected(target) {
     this.#formatTime(this.timeFormatter, target)
   }
