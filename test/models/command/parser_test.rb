@@ -12,7 +12,7 @@ class Command::ParserTest < ActionDispatch::IntegrationTest
   test "supports expressions in plain text" do
     command = parse_command "/assign @kevin"
     assert command.is_a?(Command::Assign)
-    assert_equal [users(:kevin)], command.assignees
+    assert_equal [ users(:kevin) ], command.assignees
   end
 
   test "supports expressions in rich text" do
@@ -20,6 +20,6 @@ class Command::ParserTest < ActionDispatch::IntegrationTest
       <p>/assign #{ActionText::Attachment.from_attachable(users(:kevin)).to_html}</p>
     HTML
     assert command.is_a?(Command::Assign)
-    assert_equal [users(:kevin)], command.assignees
+    assert_equal [ users(:kevin) ], command.assignees
   end
 end

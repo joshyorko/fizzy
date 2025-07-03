@@ -3,8 +3,6 @@ require "test_helper"
 class Command::Ai::TranslatorTest < ActionDispatch::IntegrationTest
   include VcrTestHelper
 
-  vcr_record!
-
   setup do
     @user = users(:david)
   end
@@ -45,10 +43,17 @@ class Command::Ai::TranslatorTest < ActionDispatch::IntegrationTest
   end
 
   test "filter by card id" do
-    # List context
     assert_command({ context: { card_ids: [ 123 ] } }, "card 123")
     assert_command({ context: { card_ids: [ 123, 456 ] } }, "card 123, 456")
     assert_command({ context: { terms: [ "123" ] } }, "123") # Notice existing cards will be intercepted earlier
+  end
+
+  vcr_record!
+
+  test "acts on cards passing their ids" do
+    assert_command({ context: { card_ids: [ 123, 456 ] }, commands: [ "/close" ] }, "close 123 and 456")
+    assert_command({ context: { card_ids: [ 123 ] }, commands: [ "/close" ] }, "close 123")
+    assert_command({ context: { card_ids: [ 1, 5, 9 ] }, commands: [ "/assign #{users(:david).to_gid}" ] }, "assign 1, 5 and 9 to myself")
   end
 
   test "filter by collections" do
