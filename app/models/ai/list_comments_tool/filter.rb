@@ -10,7 +10,7 @@ class Ai::ListCommentsTool::Filter < Ai::Tool::Filter
 
   private
     def apply_search(scope)
-      scope.search(params[:query])
+      scope.search(filters[:query])
     end
 
     def apply_ids_filter(scope)
@@ -30,7 +30,7 @@ class Ai::ListCommentsTool::Filter < Ai::Tool::Filter
     end
 
     def apply_type_filter(scope)
-      if params[:type].casecmp?("system")
+      if filters[:type].casecmp?("system")
         scope.where(creator: { role: "system" })
       else
       scope.where.not(creator: { role: "system" })

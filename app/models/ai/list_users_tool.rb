@@ -2,6 +2,7 @@ class Ai::ListUsersTool < Ai::Tool
   description <<-MD
     Lists all users accessible by the current user.
     The response is paginated so you may need to iterate through multiple pages to get the full list.
+    URLs are valid if they are just a path - don't change them!
     Each user object has the following fields:
     - id [Integer, not null]
     - name [String, not null]
@@ -30,7 +31,7 @@ class Ai::ListUsersTool < Ai::Tool
 
   def execute(**params)
     collection = user.collections.find(params[:collection_id])
-    users = Filter.new(scope: collection.users, filters: params).filter
+    users = Filter.new(scope: collection.users.active, filters: params).filter
 
     # TODO: The serialization here is temporary until we add an API,
     # then we can re-use the jbuilder views and caching from that

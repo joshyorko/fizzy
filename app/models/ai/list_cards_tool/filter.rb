@@ -12,7 +12,7 @@ class Ai::ListCardsTool::Filter < Ai::Tool::Filter
 
   private
     def apply_search(scope)
-      scope.search(params[:query])
+      scope.search(filters[:query])
     end
 
     def apply_ids_filter(scope)

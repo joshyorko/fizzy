@@ -2,6 +2,7 @@ class Ai::ListCardsTool < Ai::Tool
   description <<-MD
     Lists all cards accessible by the current user.
     The response is paginated so you may need to iterate through multiple pages to get the full list.
+    URLs are valid if they are just a path - don't change them!
     Each card object has the following fields:
     - id [Integer, not null]
     - title [String, not null] - The title of the card

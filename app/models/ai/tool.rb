@@ -12,9 +12,12 @@ class Ai::Tool < RubyLLM::Tool
       else
         response << "This is one page of results."
         response << "To see more, use this cursor for the next page:"
+        response << "```"
         response << page.next_param
+        response << "```"
       end
 
+      response << nil
       response << "Records:"
       response << "```"
       response << page.records.map(&block).to_json
@@ -24,8 +27,12 @@ class Ai::Tool < RubyLLM::Tool
     end
 
     def default_url_options
-      Rails.application.default_url_options
-        .reverse_merge(host: "fizzy.localhost", port: 3006)
-        .merge(script_name: "/#{ApplicationRecord.current_tenant}")
+      default_options = Rails.application.default_url_options
+
+      unless default_options.key?(:host)
+        default_options[:only_path] = true
+      end
+
+      default_options.merge(script_name: "/#{ApplicationRecord.current_tenant}")
     end
 end
