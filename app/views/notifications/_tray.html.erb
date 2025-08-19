@@ -9,7 +9,7 @@
       data-action="keydown->navigable-list#navigate dialog:show@document->navigable-list#reset turbo-visit->navigable-list#reset keydown.esc->dialog#close:stop click@document->dialog#closeOnClickOutside">
     <%= turbo_frame_tag "notifications", src: tray_notifications_path, refresh: "morph" %>
 
-    <div class="tray__item tray__hat txt-x-small gap-half">
+    <div class="tray__item tray__item--hat txt-x-small gap-half">
       <div data-navigable-list-target="item" class="full-width">
         <%= link_to settings_notifications_path,
               class: "btn borderless tray__notification-settings",

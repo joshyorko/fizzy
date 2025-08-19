@@ -57,14 +57,13 @@
       block-size: var(--footer-height);
       pointer-events: none;
 
-      /* On desktop, when there aren't items, tweak the position so the hat
-         doesn't look like it's coming from the bottom of the viewport */
+      /* On desktop, when there aren't items, tweak the hat so it doesn't look
+         like it's coming from the bottom of the viewport */
       @media (min-width: 800px) {
-        &:has(.tray__hat:last-child) {
-          inset-block-end: calc(var(--footer-height) / 2);
-
-          .tray__hat {
+        &:not(:has(.tray__item--notification)) {
+          .tray__item--hat {
             margin-block-end: 0;
+            opacity: 0;
           }
         }
       }
@@ -111,7 +110,7 @@
       }
 
       /* Show a red dot if there are items to show */
-      .tray__dialog:not([open]):has(.tray__item:not(.tray__hat)) ~ &:after {
+      .tray__dialog:not([open]):has(.tray__item--notification) ~ &:after {
         background: oklch(var(--lch-red-medium));
         block-size: 1ch;
         border-radius: 50%;
@@ -125,7 +124,7 @@
     /* On desktop… */
     @media (min-width: 800px) {
       /* Hide the UI when collapsed, but only if there are items */
-      .tray__dialog:not([open]):has(.tray__item:not(.tray__hat)) ~ & {
+      .tray__dialog:not([open]):has(.tray__item--notification) ~ & {
         opacity: 0;
       }
     }
@@ -162,10 +161,10 @@
       margin-block-end: var(--tray-item-margin);
       transition: var(--tray-duration) var(--tray-timing-function);
       transition-delay: var(--tray-item-delay);
-      transition-property: margin, scale;
+      transition-property: margin, opacity, scale;
 
 
-      &:not(.tray__hat) {
+      &:not(.tray__item--hat) {
         z-index: var(--tray-item-z);
       }
 
@@ -209,7 +208,7 @@
     }
   }
 
-  .tray__hat {
+  .tray__item--hat {
     --tray-hat-bg: var(--color-canvas);
     --tray-item-scale: 1;
 
@@ -477,7 +476,7 @@
         z-index: calc(var(--tray-item-z) + 2);
 
         .card,
-        .tray__hat & .btn {
+        .tray__item--hat & .btn {
           border-radius: 0.25ch;
           outline: var(--focus-ring-size) solid var(--focus-ring-color);
           outline-offset: var(--focus-ring-offset);
