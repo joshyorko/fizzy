@@ -2352,10 +2352,11 @@ indexes:
     valid: true
   - !ruby/object:ActiveRecord::ConnectionAdapters::IndexDefinition
     table: notification_bundles
-    name: index_notification_bundles_on_user_id
-    unique: true
+    name: index_notification_bundles_on_ends_at_and_status
+    unique: false
     columns:
-    - user_id
+    - ends_at
+    - status
     lengths: {}
     orders: {}
     opclasses: {}
@@ -2860,4 +2861,4 @@ indexes:
     comment:
     valid: true
   workflows: []
-version: 20250826084559
+version: 20250826131458

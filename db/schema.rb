@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_08_26_084559) do
+ActiveRecord::Schema[8.1].define(version: 2025_08_26_131458) do
   create_table "accesses", force: :cascade do |t|
     t.datetime "accessed_at"
     t.integer "collection_id", null: false
@@ -302,9 +302,9 @@ ActiveRecord::Schema[8.1].define(version: 2025_08_26_084559) do
     t.integer "status", default: 0, null: false
     t.datetime "updated_at", null: false
     t.integer "user_id", null: false
+    t.index ["ends_at", "status"], name: "index_notification_bundles_on_ends_at_and_status"
     t.index ["user_id", "starts_at", "ends_at"], name: "idx_on_user_id_starts_at_ends_at_7eae5d3ac5"
     t.index ["user_id", "status"], name: "index_notification_bundles_on_user_id_and_status"
-    t.index ["user_id"], name: "index_notification_bundles_on_user_id", unique: true
   end
 
   create_table "notifications", force: :cascade do |t|

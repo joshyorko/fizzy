@@ -6,6 +6,7 @@ class Notification::Bundle < ApplicationRecord
   before_create :set_default_window
 
   scope :due, -> { pending.where("ends_at <= ?", Time.current) }
+  scope :containing, -> (notification) { where("starts_at <= ? AND ends_at >= ?", notification.created_at, notification.created_at) }
 
   class << self
     def deliver_all
@@ -17,10 +18,6 @@ class Notification::Bundle < ApplicationRecord
     def deliver_all_later
       DeliverAllJob.perform_later
     end
-  end
-
-  def add(notification)
-    update! ends_at: [ ends_at, notification.created_at ].max
   end
 
   def notifications
