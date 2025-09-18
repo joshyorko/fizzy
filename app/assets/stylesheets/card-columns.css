@@ -178,11 +178,13 @@
   /* ------------------------------------------------------------------------ */
 
   .cards--considering {
+    --gradient-opacity: 25%;
+
     background-color: var(--color-canvas);
     background-image: linear-gradient(90deg,
       transparent 0%,
-      color-mix(in srgb, var(--color-considering) 25%, transparent) 33%,
-      color-mix(in srgb, var(--color-considering) 25%, transparent) 66%,
+      color-mix(in srgb, var(--color-considering) var(--gradient-opacity), transparent) 33%,
+      color-mix(in srgb, var(--color-considering) var(--gradient-opacity), transparent) 66%,
       transparent 100%);
     padding-block-start: 2em;
 
@@ -206,12 +208,17 @@
       padding-inline: var(--cards-gap);
     }
 
+    @media (prefers-color-scheme: dark) {
+      --gradient-opacity: 10%;
+    }
+
     .cards__decoration {
+      --gradient-opacity: 30%;
       --size: 4.25em;
 
       background-color: var(--color-canvas);
       background-image: radial-gradient(ellipse at bottom,
-        color-mix(in srgb, var(--color-considering) 30%, transparent) 0%,
+        color-mix(in srgb, var(--color-considering) var(--gradient-opacity), transparent) 0%,
         transparent 70%);
       block-size: var(--size);
       inline-size: 100%;
@@ -219,10 +226,14 @@
       position: absolute;
       z-index: -1;
 
+      @media (prefers-color-scheme: dark) {
+        --gradient-opacity: 15%;
+      }
+
       @supports(mask: radial-gradient(black)) {
         &:before {
           background: radial-gradient(ellipse at bottom,
-            color-mix(in srgb, var(--color-considering) 30%, transparent) 0%,
+            color-mix(in srgb, var(--color-considering) var(--gradient-opacity), transparent) 0%,
             transparent 70%);
           content: "";
           inset: 0;

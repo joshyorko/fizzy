@@ -324,7 +324,7 @@
 
     --color-terminal-bg: var(--color-canvas);
     --color-terminal-text-light: oklch(var(--lch-green-dark));
-    --color-golden: oklch(var(--lch-blue-light));
+    --color-golden: oklch(var(--lch-blue-medium));
 
     --shadow: 0 0 0 1px oklch(var(--lch-black) / 0.42),
               0 .2em 1.6em -0.8em oklch(var(--lch-black) / 0.6),
