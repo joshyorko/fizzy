@@ -3,9 +3,13 @@ servers:
     hosts:
       - fizzy-staging-app-01
       - fizzy-staging-app-101
+    labels:
+      otel_scrape_enabled: true
   jobs:
     hosts:
       - fizzy-staging-app-01
+    labels:
+      otel_scrape_enabled: true
 
 proxy:
   ssl: false
@@ -25,6 +29,9 @@ accessories:
       username: robot$harbor-bot
       password:
         - BASECAMP_REGISTRY_PASSWORD
+    labels:
+      role: beamer
+      service: fizzy-beamer
     options:
       user: 1000 # Match the UID of the Rails app, for volume permissions
       publish:
