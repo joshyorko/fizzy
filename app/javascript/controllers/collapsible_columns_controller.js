@@ -1,13 +1,16 @@
 import { Controller } from "@hotwired/stimulus"
+import { nextFrame } from "helpers/timing_helpers";
 
 export default class extends Controller {
   static classes = [ "collapsed", "noTransitions" ]
   static targets = [ "column", "button" ]
 
-  connect() {
+  async connect() {
     this.#disableTransitions()
     this.#restoreColumns()
-    requestAnimationFrame(() => this.#enableTransitions())
+
+    await nextFrame()
+    this.#enableTransitions()
   }
 
   toggle({ target }) {
