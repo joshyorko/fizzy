@@ -1,5 +1,3 @@
-require "ostruct"
-
 class CardsController < ApplicationController
   include FilterScoped
 
