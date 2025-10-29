@@ -62,7 +62,7 @@ module EventsHelper
     end
 
     def event_creator_name(event)
-      h(event.creator == Current.user ? "You" : event.creator.name)
+      event.creator == Current.user ? "You" : h(event.creator.name)
     end
 
     def card_event_action_sentence(event)
