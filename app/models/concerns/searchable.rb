@@ -33,7 +33,6 @@ module Searchable
     def search_record_attributes
       {
         account_id: account_id,
-        account_key: "account#{account_id}",
         searchable_type: self.class.name,
         searchable_id: id,
         card_id: search_card_id,

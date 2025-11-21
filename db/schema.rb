@@ -408,21 +408,6 @@ ActiveRecord::Schema[8.2].define(version: 2025_11_21_112416) do
     t.index ["user_id"], name: "index_search_queries_on_user_id"
   end
 
-  create_table "search_records", id: :uuid, charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
-    t.uuid "account_id", null: false
-    t.string "account_key", null: false
-    t.uuid "board_id", null: false
-    t.uuid "card_id", null: false
-    t.text "content"
-    t.datetime "created_at", null: false
-    t.uuid "searchable_id", null: false
-    t.string "searchable_type", null: false
-    t.string "title"
-    t.index ["account_id"], name: "index_search_records_on_account_id"
-    t.index ["account_key", "content", "title"], name: "index_search_records_on_account_key_and_content_and_title", type: :fulltext
-    t.index ["searchable_type", "searchable_id"], name: "index_search_records_on_searchable_type_and_searchable_id", unique: true
-  end
-
   create_table "search_records_0", id: :uuid, charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
     t.uuid "account_id", null: false
     t.string "account_key", default: "", null: false

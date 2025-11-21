@@ -6,7 +6,7 @@ module Search::Record::Trilogy
   included do
     self.abstract_class = true
 
-    before_save :stem_content
+    before_save :set_account_key, :stem_content
   end
 
   class_methods do
@@ -58,6 +58,10 @@ module Search::Record::Trilogy
     def stem_content
       self.title = Search::Stemmer.stem(title) if title_changed?
       self.content = Search::Stemmer.stem(content) if content_changed?
+    end
+
+    def set_account_key
+      self.account_key = "account#{account_id}"
     end
 
     def highlight(text, show:)
