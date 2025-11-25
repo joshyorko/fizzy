@@ -19,8 +19,6 @@ class User < ApplicationRecord
 
   scope :with_avatars, -> { preload(:account, :avatar_attachment) }
 
-  delegate :staff?, to: :identity, allow_nil: true
-
   def deactivate
     transaction do
       accesses.destroy_all

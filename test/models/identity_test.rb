@@ -13,12 +13,6 @@ class IdentityTest < ActiveSupport::TestCase
     end
   end
 
-  test "staff?" do
-    assert Identity.new(email_address: "test@37signals.com").staff?
-    assert Identity.new(email_address: "test@basecamp.com").staff?
-    assert_not Identity.new(email_address: "test@example.com").staff?
-  end
-
   test "join" do
     identity = identities(:david)
     account = accounts(:initech)
