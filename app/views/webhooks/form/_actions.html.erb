@@ -5,12 +5,14 @@
         :first,
         :last do |item| %>
     <li class="list-style-none margin-none flex align-center gap">
-      <label class="switch toggler__visible-when-off flex-item-no-shrink txt-x-small">
-        <%= item.check_box(class: "switch__input") %>
-        <span class="switch__btn round"></span>
+      <label class="toggler__visible-when-off flex-item-no-shrink flex align-center gap">
+        <span class="switch txt-x-small">
+          <%= item.check_box(class: "switch__input") %>
+          <span class="switch__btn round"></span>
+        </span>
         <span class="for-screen-reader"><%= item.text %></span>
+        <span><%= item.text %></span>
       </label>
-      <span><%= item.text %></span>
     </li>
   <% end %>
 </ul>
