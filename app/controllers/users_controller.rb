@@ -14,7 +14,10 @@ class UsersController < ApplicationController
 
   def update
     if @user.update(user_params)
-      redirect_to @user
+      respond_to do |format|
+        format.html { redirect_to @user }
+        format.json { head :no_content }
+      end
     else
       render :edit, status: :unprocessable_entity
     end
@@ -22,7 +25,11 @@ class UsersController < ApplicationController
 
   def destroy
     @user.deactivate
-    redirect_to users_path
+
+    respond_to do |format|
+      format.html { redirect_to users_path }
+      format.json { head :no_content }
+    end
   end
 
   private

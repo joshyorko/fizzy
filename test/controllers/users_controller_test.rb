@@ -102,4 +102,23 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_equal users(:david).name, @response.parsed_body["name"]
   end
+
+  test "update as JSON" do
+    sign_in_as :kevin
+
+    put user_path(users(:david)), params: { user: { name: "New David" } }, as: :json
+
+    assert_response :no_content
+    assert_equal "New David", users(:david).reload.name
+  end
+
+  test "destroy as JSON" do
+    sign_in_as :kevin
+
+    assert_difference -> { User.active.count }, -1 do
+      delete user_path(users(:david)), as: :json
+    end
+
+    assert_response :no_content
+  end
 end
