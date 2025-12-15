@@ -128,8 +128,9 @@ module Fizzy
 
       config.to_prepare do
         ::Account.include(Account::Billing)
-        ::CardsController.include(Card::Limited)
         ::Signup.prepend(Fizzy::Saas::Signup)
+        CardsController.include(Card::LimitedCreation)
+        Cards::PublishesController.include(Card::LimitedPublishing)
 
         Queenbee::Subscription.short_names = Subscription::SHORT_NAMES
 
