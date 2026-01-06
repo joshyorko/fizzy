@@ -89,8 +89,9 @@ Rails.application.configure do
     "fizzy.localhost",
     "localhost",
     "127.0.0.1",
-    /fizzy-\d+/,  # review apps: fizzy-123, fizzy-456:3000
-    /.*\.ts\.net/ # tailscale serve: hostname.tail1234.ts.net
+    /fizzy-\d+/,   # review apps: fizzy-123, fizzy-456:3000
+    /.*\.ts\.net/, # tailscale serve: hostname.tail1234.ts.net
+    /.*\.nip\.io/  # nip.io for mobile apps
   ]
 
   # Canonical host for mailer URLs (emails always link here, not personal Tailscale URLs)
