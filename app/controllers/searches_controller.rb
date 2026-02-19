@@ -3,6 +3,7 @@ class SearchesController < ApplicationController
 
   def show
     @query = params[:q].blank? ? nil : params[:q]
+
     if card = Current.user.accessible_cards.find_by_id(@query)
       @card = card
     else
