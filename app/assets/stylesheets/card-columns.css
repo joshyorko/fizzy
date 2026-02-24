@@ -769,13 +769,16 @@
     --panel-padding: 2ch;
     --panel-size: 100%;
 
-    display: flex;
     flex-wrap: wrap;
     gap: var(--gap);
     inset-block-start: 0;
     justify-content: center;
     position: absolute;
     z-index: 1;
+
+    &[open] {
+      display: flex;
+    }
   }
 
   /* On Deck (Not Now)
