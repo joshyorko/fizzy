@@ -117,4 +117,57 @@ class Account::DataTransfer::ActionText::RichTextRecordSetTest < ActiveSupport::
 
     assert_equal html, result
   end
+
+  test "relativize_urls strips instance host from absolute URLs" do
+    with_default_url_host("fizzy.example.com") do
+      record_set = Account::DataTransfer::ActionText::RichTextRecordSet.new(accounts(:"37s"))
+
+      html = %(<p>See <a href="https://fizzy.example.com/123/cards/42">card</a></p>)
+      result = record_set.send(:relativize_urls, html)
+
+      assert_includes result, %(/123/cards/42)
+      assert_not_includes result, "fizzy.example.com"
+    end
+  end
+
+  test "relativize_urls preserves query and fragment" do
+    with_default_url_host("fizzy.example.com") do
+      record_set = Account::DataTransfer::ActionText::RichTextRecordSet.new(accounts(:"37s"))
+
+      html = %(<p><a href="https://fizzy.example.com/123/cards/42?tab=comments#comment_1">link</a></p>)
+      result = record_set.send(:relativize_urls, html)
+
+      assert_includes result, "/123/cards/42?tab=comments#comment_1"
+      assert_not_includes result, "fizzy.example.com"
+    end
+  end
+
+  test "relativize_urls leaves external URLs alone" do
+    with_default_url_host("fizzy.example.com") do
+      record_set = Account::DataTransfer::ActionText::RichTextRecordSet.new(accounts(:"37s"))
+
+      html = %(<p><a href="https://github.com/some/repo">link</a></p>)
+      result = record_set.send(:relativize_urls, html)
+
+      assert_includes result, "https://github.com/some/repo"
+    end
+  end
+
+  test "relativize_urls is a no-op when host is not configured" do
+    record_set = Account::DataTransfer::ActionText::RichTextRecordSet.new(accounts(:"37s"))
+
+    html = %(<p><a href="https://fizzy.example.com/123/cards/42">link</a></p>)
+    result = record_set.send(:relativize_urls, html)
+
+    assert_includes result, "https://fizzy.example.com/123/cards/42"
+  end
+
+  private
+    def with_default_url_host(host)
+      original = Rails.application.routes.default_url_options[:host]
+      Rails.application.routes.default_url_options[:host] = host
+      yield
+    ensure
+      Rails.application.routes.default_url_options[:host] = original
+    end
 end
