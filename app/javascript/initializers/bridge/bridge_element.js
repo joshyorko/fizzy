@@ -1,10 +1,14 @@
 import { BridgeElement } from "@hotwired/hotwire-native-bridge"
 
 BridgeElement.prototype.getButton = function() {
-  return {
+  const button = {
     title: this.title,
-    icon: this.getIcon()
+    icon: this.getIcon(),
+    showLabel: this.getShowLabel(),
+    isMainAction: this.getIsMainAction()
   }
+  console.log(button)
+  return button
 }
 
 BridgeElement.prototype.getIcon = function() {
@@ -15,4 +19,12 @@ BridgeElement.prototype.getIcon = function() {
   }
 
   return null
+}
+
+BridgeElement.prototype.getShowLabel = function() {
+  return !!this.bridgeAttribute(`show-label`)
+}
+
+BridgeElement.prototype.getIsMainAction = function() {
+  return !!this.bridgeAttribute(`main-action`)
 }
