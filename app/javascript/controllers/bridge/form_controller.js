@@ -7,6 +7,8 @@ export default class extends BridgeComponent {
   static values = { submitTitle: String }
 
   connect() {
+    super.connect()
+
     if (!this.beforeUnloadHandler) {
       this.beforeUnloadHandler = this.handleBeforeUnload.bind(this)
     }
@@ -15,6 +17,8 @@ export default class extends BridgeComponent {
   }
 
   disconnect() {
+    super.disconnect()
+
     if (this.beforeUnloadHandler) {
       window.removeEventListener("beforeunload", this.beforeUnloadHandler)
     }
