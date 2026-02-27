@@ -31,8 +31,8 @@ class Notification::EventPayload < Notification::DefaultPayload
     when "card_sent_back_to_triage"
       "Moved back to Maybe? by #{event.creator.name}"
     when "card_board_changed", "card_collection_changed"
-      if new_board_name.present?
-        "Moved to #{new_board_name} by #{event.creator.name}"
+      if new_location_name.present?
+        "Moved to #{new_location_name} by #{event.creator.name}"
       else
         "Moved by #{event.creator.name}"
       end
@@ -85,7 +85,7 @@ class Notification::EventPayload < Notification::DefaultPayload
       event.particulars.dig("particulars", "column")
     end
 
-    def new_board_name
+    def new_location_name
       event.particulars.dig("particulars", "new_board") ||
         event.particulars.dig("particulars", "new_collection")
     end
