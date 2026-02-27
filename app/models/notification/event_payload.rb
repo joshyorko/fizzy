@@ -27,9 +27,17 @@ class Notification::EventPayload < Notification::DefaultPayload
     when "card_sent_back_to_triage"
       "Moved back to Maybe? by #{event.creator.name}"
     when "card_board_changed"
-      "Moved to #{new_board_name} by #{event.creator.name}"
+      if new_board_name.present?
+        "Moved to #{new_board_name} by #{event.creator.name}"
+      else
+        "Moved by #{event.creator.name}"
+      end
     when "card_title_changed"
-      "Renamed to #{new_title} by #{event.creator.name}"
+      if new_title.present?
+        "Renamed to #{new_title} by #{event.creator.name}"
+      else
+        "Renamed by #{event.creator.name}"
+      end
     when "card_postponed"
       "Moved to Not Now by #{event.creator.name}"
     when "card_auto_postponed"
@@ -74,7 +82,8 @@ class Notification::EventPayload < Notification::DefaultPayload
     end
 
     def new_board_name
-      event.particulars.dig("particulars", "new_board")
+      event.particulars.dig("particulars", "new_board") ||
+        event.particulars.dig("particulars", "new_collection")
     end
 
     def new_title
