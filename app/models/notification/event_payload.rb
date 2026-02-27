@@ -26,7 +26,7 @@ class Notification::EventPayload < Notification::DefaultPayload
       "Moved to #{column_name} by #{event.creator.name}"
     when "card_sent_back_to_triage"
       "Moved back to Maybe? by #{event.creator.name}"
-    when "card_board_changed"
+    when "card_board_changed", "card_collection_changed"
       if new_board_name.present?
         "Moved to #{new_board_name} by #{event.creator.name}"
       else

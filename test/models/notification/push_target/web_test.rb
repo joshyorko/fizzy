@@ -113,6 +113,18 @@ class Notification::PushTarget::WebTest < ActiveSupport::TestCase
     Notification::PushTarget::Web.new(@notification).process
   end
 
+  test "payload for collection change includes new collection name" do
+    event = events(:logo_published)
+    event.update!(action: "card_collection_changed", particulars: { "particulars" => { "new_collection" => "New Collection" } })
+    @notification.update!(source: event)
+
+    @web_push_pool.expects(:queue).once.with do |payload, _|
+      payload[:body] == "Moved to New Collection by #{event.creator.name}"
+    end
+
+    Notification::PushTarget::Web.new(@notification).process
+  end
+
   test "payload for title change includes new title" do
     event = events(:logo_published)
     event.update!(action: "card_title_changed", particulars: { "particulars" => { "old_title" => "Old Title", "new_title" => "New Title" } })
