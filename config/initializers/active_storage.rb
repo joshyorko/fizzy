@@ -59,4 +59,5 @@ end
 Rails.application.config.to_prepare do
   ActiveStorage::BaseController.include ActiveStorageControllerExtensions
   ActiveStorage::DirectUploadsController.include ActiveStorageDirectUploadsControllerExtensions
+  ActiveStorage::MultipartUploadsController.include ActiveStorageDirectUploadsControllerExtensions if defined?(ActiveStorage::MultipartUploadsController)
 end

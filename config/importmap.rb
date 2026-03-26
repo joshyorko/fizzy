@@ -18,3 +18,4 @@ pin_all_from "app/javascript/bridge/controllers/bridge", under: "controllers/bri
 pin "lexxy"
 pin "@rails/activestorage", to: "activestorage.esm.js"
 pin "@rails/actiontext", to: "actiontext.esm.js"
+pin "spark-md5" # @3.0.2

@@ -247,6 +247,14 @@ Rails.application.routes.draw do
   get "manifest" => "rails/pwa#manifest", as: :pwa_manifest
   get "service-worker" => "pwa#service_worker"
 
+  scope ActiveStorage.routes_prefix, as: :rails, module: :active_storage do
+    resources :multipart_uploads, only: [ :create, :destroy ] do
+      member do
+        post :complete
+      end
+    end
+  end
+
   # Mobile clients
   get "client_configurations/(:platform)_v(:version)" => "client_configurations#show",
     platform: /android|ios/, version: /\d+/

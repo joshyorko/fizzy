@@ -12,6 +12,9 @@
   <%= csp_meta_tag %>
   <%= tag.meta name: "current-user-id", content: Current.user.id if Current.user %>
   <%= tag.meta name: "vapid-public-key", content: Rails.configuration.x.vapid.public_key %>
+  <% if ActiveStorage::Blob.service.is_a?(ActiveStorage::Service::S3Service) %>
+    <%= tag.meta name: "active-storage-multipart-threshold", content: ActiveStorage::MultipartUpload::CLIENT_THRESHOLD %>
+  <% end %>
 
   <% turbo_refreshes_with method: :morph, scroll: :preserve %>
 
