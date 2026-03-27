@@ -3,13 +3,13 @@
 <% height = blob.metadata["height"] %>
 
 <% if blob.video? %>
-  <%= tag.video \
-        src: rails_blob_path(blob),
-        controls: true,
-        preload: :metadata,
-        style: "aspect-ratio: #{width} / #{height};",
-        width: width,
-        height: height %>
+  <% video_options = { src: rails_blob_path(blob), controls: true, preload: :metadata } %>
+  <% if width.present? && height.present? %>
+    <% video_options[:style] = "aspect-ratio: #{width} / #{height};" %>
+    <% video_options[:width] = width %>
+    <% video_options[:height] = height %>
+  <% end %>
+  <%= tag.video(**video_options) %>
 <% elsif blob.audio? %>
   <audio controls="true" width="100%" preload="metadata">
     <source src="<%= rails_blob_path(blob) %>" type="<%= blob.content_type %>">

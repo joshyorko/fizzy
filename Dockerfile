@@ -16,7 +16,18 @@ WORKDIR /rails
 
 # Install base packages
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y curl libjemalloc2 libvips sqlite3 libssl-dev && \
+    apt-get install --no-install-recommends -y \
+    curl \
+    ffmpeg \
+    groff \
+    libjemalloc2 \
+    libssl-dev \
+    libvips \
+    libreoffice-calc \
+    libreoffice-impress \
+    libreoffice-writer \
+    mupdf-tools \
+    sqlite3 && \
     ARCH=$(dpkg --print-architecture) && \
     curl -sSL "https://github.com/benbjohnson/litestream/releases/download/v0.3.13/litestream-v0.3.13-linux-${ARCH}.deb" -o /tmp/litestream.deb && \
     dpkg -i /tmp/litestream.deb && \
