@@ -11,8 +11,8 @@ kamal_storage_path = ENV.fetch("KAMAL_STORAGE_PATH")
 kamal_mailer_from_address = ENV.fetch("KAMAL_MAILER_FROM_ADDRESS")
 s3_endpoint = ENV.fetch("S3_ENDPOINT")
 s3_bucket = ENV.fetch("S3_BUCKET")
-s3_region = ENV.fetch("S3_REGION", "auto")
-s3_force_path_style = ENV.fetch("S3_FORCE_PATH_STYLE", "false")
+s3_region = ENV.fetch("S3_REGION", "us-east-1")
+s3_force_path_style = ENV.fetch("S3_FORCE_PATH_STYLE", "true")
 s3_bucket_setup_enabled = ENV.fetch("S3_BUCKET_SETUP_ENABLED", "false")
 s3_csp_sources = [ s3_endpoint ]
 
