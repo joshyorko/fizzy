@@ -1,5 +1,6 @@
 <%
 require "dotenv"
+require "uri"
 
 Dotenv.load(".env.kamal.local") if File.exist?(".env.kamal.local")
 
@@ -10,6 +11,17 @@ kamal_storage_path = ENV.fetch("KAMAL_STORAGE_PATH")
 kamal_mailer_from_address = ENV.fetch("KAMAL_MAILER_FROM_ADDRESS")
 s3_endpoint = ENV.fetch("S3_ENDPOINT")
 s3_bucket = ENV.fetch("S3_BUCKET")
+s3_region = ENV.fetch("S3_REGION", "auto")
+s3_force_path_style = ENV.fetch("S3_FORCE_PATH_STYLE", "false")
+s3_bucket_setup_enabled = ENV.fetch("S3_BUCKET_SETUP_ENABLED", "false")
+s3_csp_sources = [ s3_endpoint ]
+
+unless s3_force_path_style == "true"
+  s3_endpoint_uri = URI.parse(s3_endpoint)
+  if !s3_endpoint_uri.scheme.to_s.empty? && !s3_endpoint_uri.host.to_s.empty?
+    s3_csp_sources << "#{s3_endpoint_uri.scheme}://#{s3_bucket}.#{s3_endpoint_uri.host}"
+  end
+end
 %>
 # Name of this app
 service: fizzy
@@ -60,12 +72,13 @@ env:
     SOLID_QUEUE_IN_PUMA: true # Run background jobs in the app container
     ACTIVE_STORAGE_SERVICE: s3
     S3_ENDPOINT: <%= s3_endpoint %>
-    CSP_CONNECT_SRC: <%= s3_endpoint %>
-    CSP_IMG_SRC: <%= s3_endpoint %>
-    S3_REGION: us-east-1
-    S3_FORCE_PATH_STYLE: true
+    CSP_CONNECT_SRC: <%= s3_csp_sources.uniq.join(" ") %>
+    CSP_IMG_SRC: <%= s3_csp_sources.uniq.join(" ") %>
+    S3_REGION: <%= s3_region %>
+    S3_FORCE_PATH_STYLE: <%= s3_force_path_style %>
+    S3_BUCKET_SETUP_ENABLED: <%= s3_bucket_setup_enabled %>
     S3_BUCKET: <%= s3_bucket %>
-    AWS_REGION: us-east-1
+    AWS_REGION: <%= s3_region %>
 
 
 accessories:

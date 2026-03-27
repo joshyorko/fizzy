@@ -6,7 +6,7 @@ dbs:
         path: litestream/production.sqlite3
         region: ${AWS_REGION}
         endpoint: ${S3_ENDPOINT}
-        force-path-style: true
+        force-path-style: ${S3_FORCE_PATH_STYLE}
         sync-interval: 1s
 
   - path: /rails/storage/production_queue.sqlite3
@@ -16,7 +16,7 @@ dbs:
         path: litestream/production_queue.sqlite3
         region: ${AWS_REGION}
         endpoint: ${S3_ENDPOINT}
-        force-path-style: true
+        force-path-style: ${S3_FORCE_PATH_STYLE}
         sync-interval: 1s
 
   - path: /rails/storage/production_cache.sqlite3
@@ -26,7 +26,7 @@ dbs:
         path: litestream/production_cache.sqlite3
         region: ${AWS_REGION}
         endpoint: ${S3_ENDPOINT}
-        force-path-style: true
+        force-path-style: ${S3_FORCE_PATH_STYLE}
         sync-interval: 1s
 
   - path: /rails/storage/production_cable.sqlite3
@@ -36,5 +36,5 @@ dbs:
         path: litestream/production_cable.sqlite3
         region: ${AWS_REGION}
         endpoint: ${S3_ENDPOINT}
-        force-path-style: true
+        force-path-style: ${S3_FORCE_PATH_STYLE}
         sync-interval: 1s
