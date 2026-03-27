@@ -6,7 +6,7 @@
   <%= tag.video \
         src: rails_blob_path(blob),
         controls: true,
-        preload: :none,
+        preload: :metadata,
         style: "aspect-ratio: #{width} / #{height};",
         width: width,
         height: height %>
