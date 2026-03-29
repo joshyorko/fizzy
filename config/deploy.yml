@@ -77,6 +77,8 @@ env:
     S3_REGION: <%= s3_region %>
     S3_FORCE_PATH_STYLE: <%= s3_force_path_style %>
     S3_BUCKET_SETUP_ENABLED: <%= s3_bucket_setup_enabled %>
+    S3_REQUEST_CHECKSUM_CALCULATION: <%= ENV.fetch("S3_REQUEST_CHECKSUM_CALCULATION", "when_required") %>
+    S3_RESPONSE_CHECKSUM_VALIDATION: <%= ENV.fetch("S3_RESPONSE_CHECKSUM_VALIDATION", "when_required") %>
     S3_BUCKET: <%= s3_bucket %>
     AWS_REGION: <%= s3_region %>
 
