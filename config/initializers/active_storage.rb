@@ -13,8 +13,10 @@ ActiveSupport.on_load(:action_text_content) do
   ActiveSupport.on_load(:active_storage_blob) do
     # Ensure all <action-text-attachment>s have a "url" attribute that's a relative
     # path (for portability across host name changes, beta environments, etc).
+    # Use rails_blob_path so edit mode follows Active Storage's configured
+    # proxy/redirect route instead of hard-coding a storage route.
     def to_rich_text_attributes(*)
-      super.merge url: Rails.application.routes.url_helpers.polymorphic_url(self, only_path: true)
+      super.merge url: Rails.application.routes.url_helpers.rails_blob_path(self, only_path: true)
     end
   end
 end
