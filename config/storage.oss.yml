@@ -6,6 +6,14 @@ local:
   service: Disk
   root: <%= Rails.root.join("storage", Rails.env, "files") %>
 
+mirror_s3:
+  service: Mirror
+  primary: local
+  mirrors: [ s3 ]
+
+# Legacy production service for blobs created before direct uploads were switched
+# to S3. Keep this definition while existing blobs still reference mirror_s3.
+
 devminio:
   service: S3
   bucket: fizzy-dev-activestorage
@@ -24,6 +32,6 @@ s3:
   endpoint: <%= ENV["S3_ENDPOINT"] %>
   force_path_style: <%= ENV["S3_FORCE_PATH_STYLE"] == "true" %>
   region: <%= ENV.fetch("S3_REGION", "us-east-1") %>
-  request_checksum_calculation: <%= ENV.fetch("S3_REQUEST_CHECKSUM_CALCULATION", "when_supported") %>
-  response_checksum_validation: <%= ENV.fetch("S3_RESPONSE_CHECKSUM_VALIDATION", "when_supported") %>
+  request_checksum_calculation: <%= ENV.fetch("S3_REQUEST_CHECKSUM_CALCULATION", "when_required") %>
+  response_checksum_validation: <%= ENV.fetch("S3_RESPONSE_CHECKSUM_VALIDATION", "when_required") %>
   secret_access_key: <%= ENV["S3_SECRET_ACCESS_KEY"] %>

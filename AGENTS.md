@@ -58,6 +58,16 @@ Deploy: `bin/kamal deploy -d <destination>`
 Destinations: production, staging, beta, beta1, beta2, beta3, beta4
 Note: `beta` is a template requiring `BETA_NUMBER` env var; typical targets are `beta1`-`beta4`.
 
+## Repository Workflow
+
+This working copy is for `joshyorko/fizzy`, which is a downstream fork of `basecamp/fizzy`.
+
+- Treat `joshyorko/fizzy` as the default GitHub repository for pushes and pull requests.
+- Treat `self-hosted` as a downstream branch in `joshyorko/fizzy`, not as an upstream contribution branch.
+- Do not open pull requests against `basecamp/fizzy` unless the user explicitly asks for an upstream PR.
+- Before opening any PR, verify both the head repo and the base repo so the PR is created in the intended downstream repository.
+- If the user asks for a PR "in mine" or "in Josh's repo", that means `joshyorko/fizzy`, not `basecamp/fizzy`.
+
 ## Architecture Overview
 
 ### Multi-Tenancy (URL-Based)

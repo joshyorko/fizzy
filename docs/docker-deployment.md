@@ -140,8 +140,19 @@ If you're using a provider other than AWS, you will also need some of the follow
 
 - `S3_ENDPOINT`
 - `S3_FORCE_PATH_STYLE`
+- `S3_BUCKET_SETUP_ENABLED`
 - `S3_REQUEST_CHECKSUM_CALCULATION`
 - `S3_RESPONSE_CHECKSUM_VALIDATION`
+
+For Cloudflare R2, use:
+
+- `S3_REGION=auto`
+- `S3_FORCE_PATH_STYLE=false`
+- `S3_BUCKET_SETUP_ENABLED=false`
+
+R2 buckets should be created ahead of time and kept private. Fizzy should use
+presigned URLs for upload and download access instead of trying to create the
+bucket at boot.
 
 #### Multi-tenant mode
 

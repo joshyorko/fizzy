@@ -11,6 +11,7 @@
       <span class="for-screen-reader">Add background image</span>
 
       <%= form.file_field :image, class: "input",
+            direct_upload: true,
             accept: "image/png, image/jpeg, image/jpg, image/webp",
             aria: { label: "Add background image" },
             data: { action: "upload-preview#previewImage form#submit", upload_preview_target: "input" } %>
