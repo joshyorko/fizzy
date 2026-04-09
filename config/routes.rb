@@ -46,6 +46,7 @@ Rails.application.routes.draw do
     resources :webhooks do
       scope module: :webhooks do
         resource :activation, only: :create
+        resources :deliveries, only: :index, defaults: { format: :json }
       end
     end
   end
@@ -132,6 +133,7 @@ Rails.application.routes.draw do
     end
   end
 
+  resources :activities, only: :index
   resources :events, only: :index
   namespace :events do
     resources :days

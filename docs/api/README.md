@@ -17,8 +17,10 @@ a bot to perform various actions for you.
 - [Reactions](sections/reactions.md)
 - [Tags](sections/tags.md)
 - [Users](sections/users.md)
+- [Activities](sections/activities.md)
 - [Notifications](sections/notifications.md)
 - [Rich Text](sections/rich_text.md)
+- [Exports](sections/exports.md)
 - [Webhooks](sections/webhooks.md)
 
 ## Authentication
