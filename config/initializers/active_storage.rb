@@ -59,17 +59,17 @@ module ActiveStorageDirectUploadsControllerExtensions
 end
 
 module ActiveStorageVariantWithRecordExtensions
+  # Variant records can point at derivative blobs whose objects are missing in
+  # storage. Treat those as stale so the next request regenerates the preview.
+  def processed?
+    super && !stale_record?
+  end
+
   private
     # Variant generation can happen outside a request, so derivative blobs need
     # the source blob's tenant applied explicitly before attachment validation.
     def create_or_find_record(image:)
       Current.with(account: blob.account) { super }
-    end
-
-    # Variant records can point at derivative blobs whose objects are missing in
-    # storage. Treat those as stale so the next request regenerates the preview.
-    def processed?
-      super && !stale_record?
     end
 
     def process

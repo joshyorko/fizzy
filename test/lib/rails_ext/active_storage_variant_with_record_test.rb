@@ -20,7 +20,7 @@ class ActiveStorageVariantWithRecordTest < ActiveSupport::TestCase
       variant = @blob.variant(resize_to_limit: [ 100, 100 ]).processed
     end
 
-    assert_equal @account, variant.record.account
+    assert_equal @account, variant.image.record.account
     assert_equal @account, variant.image.blob.account
   end
 
@@ -29,7 +29,7 @@ class ActiveStorageVariantWithRecordTest < ActiveSupport::TestCase
       @blob.variant(resize_to_limit: [ 100, 100 ]).processed
     end
 
-    stale_record_id = stale_variant.record.id
+    stale_record_id = stale_variant.image.record.id
     stale_blob = stale_variant.image.blob
     stale_blob.service.delete(stale_blob.key)
 
@@ -37,7 +37,7 @@ class ActiveStorageVariantWithRecordTest < ActiveSupport::TestCase
       @blob.variant(resize_to_limit: [ 100, 100 ]).processed
     end
 
-    assert_not_equal stale_record_id, regenerated_variant.record.id
+    assert_not_equal stale_record_id, regenerated_variant.image.record.id
     assert regenerated_variant.image.blob.service.exist?(regenerated_variant.image.blob.key)
   end
 end
