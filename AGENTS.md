@@ -171,6 +171,15 @@ Login: david@example.com (passwordless magic link auth - check rails console for
 
 Use Chrome MCP tools to interact with the running dev app for UI testing and debugging.
 
+### Fizzy MCP / API
+
+- MCP endpoint: `/mcp`
+- Read tools use `read`; mutating tools require `read write` or a Read + Write personal access token.
+- Current mutating MCP tools: `card_create`, `card_update`, `comment_create`.
+- Card descriptions and comment bodies are Action Text rich text. Send sanitized HTML in `description`/`body` for lists, links, bold text, and paragraphs; do not rely on Markdown rendering.
+- For agent workflow cards, use board-visible golden tickets: tag the card `#agent-instructions`, put the agent prompt in the description, use card steps for ordered work, and add completion tags like `#move-to-done`, `#close-on-complete`, or `#move-to-<column>`.
+- MCP `card_create`/`card_update` support `tag_titles`, `steps`, and `golden` for golden-ticket setup. `tag_titles` is idempotent and strips leading `#`; `steps` skips duplicate matching step content.
+
 ## Coding style
 
 @STYLE.md

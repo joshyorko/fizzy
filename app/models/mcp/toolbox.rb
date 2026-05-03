@@ -57,14 +57,20 @@ class Mcp::Toolbox
           board_id: string_schema("Board id"),
           column_id: string_schema("Column id"),
           title: string_schema("Card title"),
-          description: string_schema("Card description")
+          description: rich_text_schema("Card description"),
+          tag_titles: array_schema("Tag titles to apply, with or without leading #. Use #agent-instructions, #move-to-done, #close-on-complete, or #move-to-<column> for agent workflow cards."),
+          steps: array_schema("Checklist step contents to create on the card. Existing matching steps are not duplicated."),
+          golden: boolean_schema("Whether to mark the card with Fizzy's native golden marker.")
         }, required: [ "account_id", "board_id", "title" ]),
         write_tool("card_update", "Update card", "Update title, description, or column for an accessible card.", {
           account_id: string_schema("Account id or account slug"),
           card_id: string_schema("Card id or card number"),
           title: string_schema("Card title"),
-          description: string_schema("Card description"),
-          column_id: string_schema("Column id")
+          description: rich_text_schema("Card description"),
+          column_id: string_schema("Column id"),
+          tag_titles: array_schema("Tag titles to apply, with or without leading #. Use #agent-instructions, #move-to-done, #close-on-complete, or #move-to-<column> for agent workflow cards."),
+          steps: array_schema("Checklist step contents to create on the card. Existing matching steps are not duplicated."),
+          golden: boolean_schema("Whether to mark the card with Fizzy's native golden marker.")
         }, required: [ "card_id" ]),
         read_tool("comment_list", "List comments", "List comments on an accessible card.", {
           account_id: string_schema("Account id or account slug"),
@@ -74,7 +80,7 @@ class Mcp::Toolbox
         write_tool("comment_create", "Create comment", "Create a comment on an accessible card.", {
           account_id: string_schema("Account id or account slug"),
           card_id: string_schema("Card id or card number"),
-          body: string_schema("Comment body")
+          body: rich_text_schema("Comment body")
         }, required: [ "card_id", "body" ])
       ]
     end
@@ -85,7 +91,7 @@ class Mcp::Toolbox
       end
 
       def write_tool(name, title, description, properties, required: [])
-        tool(name, title, description, properties, required: required, scopes: [ "write" ], read_only: false)
+        tool(name, title, description, properties, required: required, scopes: [ "read", "write" ], read_only: false)
       end
 
       def tool(name, title, description, properties, required:, scopes:, read_only:)
@@ -100,7 +106,7 @@ class Mcp::Toolbox
             properties: properties,
             required: required
           },
-          annotations: { readOnlyHint: read_only },
+          annotations: { readOnlyHint: read_only, destructiveHint: false },
           securitySchemes: security_schemes,
           _meta: { securitySchemes: security_schemes }
         }
@@ -108,6 +114,18 @@ class Mcp::Toolbox
 
       def string_schema(description)
         { type: "string", description: description }
+      end
+
+      def rich_text_schema(description)
+        string_schema("#{description} as sanitized Action Text HTML. Plain text is accepted, but send HTML for lists, links, bold, italics, or paragraphs.")
+      end
+
+      def array_schema(description)
+        { type: "array", description: description, items: { type: "string" } }
+      end
+
+      def boolean_schema(description)
+        { type: "boolean", description: description }
       end
 
       def integer_schema(description)
@@ -150,6 +168,7 @@ class Mcp::Toolbox
       id: card.id,
       title: card.title,
       text: card.description.to_plain_text,
+      html: card.description.to_s,
       url: card_url(account, card),
       metadata: card_metadata(account, card)
     }
@@ -230,7 +249,12 @@ class Mcp::Toolbox
       }
 
       attributes[:column] = board.columns.find(arguments["column_id"]) if arguments["column_id"].present?
-      card = board.cards.create!(attributes)
+      card = nil
+
+      Card.transaction do
+        card = board.cards.create!(attributes)
+        apply_card_workflow(card, arguments)
+      end
 
       {
         card: card_hash(account, card.reload),
@@ -247,7 +271,10 @@ class Mcp::Toolbox
         attributes[:column] = arguments["column_id"].present? ? card.board.columns.find(arguments["column_id"]) : nil
       end
 
-      card.update!(attributes)
+      Card.transaction do
+        card.update!(attributes) if attributes.present?
+        apply_card_workflow(card, arguments)
+      end
 
       {
         card: card_hash(account, card.reload),
@@ -377,6 +404,42 @@ class Mcp::Toolbox
       (arguments["limit"].presence || default).to_i.clamp(1, maximum)
     end
 
+    def apply_card_workflow(card, arguments)
+      apply_golden(card, arguments["golden"]) if arguments.key?("golden")
+      apply_tags(card, arguments["tag_titles"]) if arguments.key?("tag_titles")
+      apply_steps(card, arguments["steps"]) if arguments.key?("steps")
+    end
+
+    def apply_golden(card, value)
+      ActiveModel::Type::Boolean.new.cast(value) ? card.gild : card.ungild
+    end
+
+    def apply_tags(card, titles)
+      array_argument(titles).filter_map { |title| normalized_tag_title(title) }.each do |title|
+        tag = card.account.tags.find_or_create_by!(title: title)
+        card.taggings.find_or_create_by!(tag: tag)
+      end
+    end
+
+    def apply_steps(card, contents)
+      existing_contents = card.steps.pluck(:content)
+
+      array_argument(contents).map { |content| content.to_s.strip }.reject(&:blank?).each do |content|
+        next if existing_contents.include?(content)
+
+        card.steps.create!(content: content)
+        existing_contents << content
+      end
+    end
+
+    def array_argument(value)
+      value.is_a?(Array) ? value : Array(value)
+    end
+
+    def normalized_tag_title(title)
+      title.to_s.strip.gsub(/\A#+/, "").presence
+    end
+
     def search_result_hash(account, card)
       {
         id: card.id,
@@ -426,9 +489,13 @@ class Mcp::Toolbox
         title: card.title,
         status: card.status,
         description: card.description.to_plain_text,
+        description_html: card.description.to_s,
         url: card_url(account, card),
         board: board_hash(card.board),
         column: card.column && column_hash(card.column),
+        tags: card.tags.alphabetically.map(&:hashtag),
+        golden: card.golden?,
+        steps: step_hashes(card),
         created_at: card.created_at.utc.iso8601,
         last_active_at: card.last_active_at.utc.iso8601
       }
@@ -442,7 +509,9 @@ class Mcp::Toolbox
         board_id: card.board_id,
         board_name: card.board.name,
         card_number: card.number,
-        status: card.status
+        status: card.status,
+        tags: card.tags.alphabetically.map(&:hashtag),
+        golden: card.golden?
       }
     end
 
@@ -450,6 +519,7 @@ class Mcp::Toolbox
       {
         id: comment.id,
         body: comment.body.to_plain_text,
+        body_html: comment.body.to_s,
         creator: {
           id: comment.creator.id,
           name: comment.creator.name
@@ -463,5 +533,15 @@ class Mcp::Toolbox
 
     def card_url(account, card)
       @url_context.card_url(card, script_name: account.slug)
+    end
+
+    def step_hashes(card)
+      card.steps.order(:created_at, :id).map do |step|
+        {
+          id: step.id,
+          content: step.content,
+          completed: step.completed?
+        }
+      end
     end
 end

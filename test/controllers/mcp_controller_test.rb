@@ -52,6 +52,25 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
   end
 
+  test "write tools advertise read and write scopes with golden ticket fields" do
+    untenanted do
+      post mcp_path, params: json_rpc("tools/list").to_json, headers: json_headers(@write_token)
+    end
+
+    assert_response :success
+    tools = @response.parsed_body.dig("result", "tools")
+    card_update = tools.find { |tool| tool["name"] == "card_update" }
+
+    assert_equal [ "read", "write" ], card_update.dig("securitySchemes", 0, "scopes")
+    assert_equal [ "read", "write" ], card_update.dig("_meta", "securitySchemes", 0, "scopes")
+    assert_equal false, card_update.dig("annotations", "readOnlyHint")
+    assert_equal false, card_update.dig("annotations", "destructiveHint")
+    assert_includes card_update.dig("inputSchema", "properties", "description", "description"), "HTML"
+    assert_equal "array", card_update.dig("inputSchema", "properties", "tag_titles", "type")
+    assert_equal "array", card_update.dig("inputSchema", "properties", "steps", "type")
+    assert_equal "boolean", card_update.dig("inputSchema", "properties", "golden", "type")
+  end
+
   test "write token can create a card" do
     assert_difference -> { boards(:writebook).cards.count }, +1 do
       untenanted do
@@ -70,6 +89,38 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     card = Card.order(:created_at).last
     assert_equal "MCP card", card.title
     assert_equal "Created from ChatGPT", card.description.to_plain_text
+  end
+
+  test "write token can create a golden ticket card with html tags and steps" do
+    assert_difference -> { boards(:writebook).cards.count }, +1 do
+      untenanted do
+        post mcp_path,
+          params: tool_call("card_create",
+            account_id: @account_id,
+            board_id: boards(:writebook).id,
+            title: "Agent golden ticket",
+            description: "<p>Use <strong>board instructions</strong>.</p><ul><li>Keep card updated</li></ul>",
+            tag_titles: [ "#agent-instructions", "#move-to-done" ],
+            steps: [ "Research context", "Update Fizzy" ],
+            golden: true
+          ).to_json,
+          headers: json_headers(@write_token)
+      end
+    end
+
+    assert_response :success
+    card = boards(:writebook).cards.find_by!(title: "Agent golden ticket")
+    assert_includes card.description.to_s, "<strong>board instructions</strong>"
+    assert_includes card.description.to_s, "<li>Keep card updated</li>"
+    assert_equal [ "agent-instructions", "move-to-done" ], card.tags.pluck(:title).sort
+    assert_equal [ "Research context", "Update Fizzy" ], card.steps.order(:created_at, :id).pluck(:content)
+    assert card.golden?
+
+    payload = @response.parsed_body.dig("result", "structuredContent", "card")
+    assert_equal true, payload["golden"]
+    assert_includes payload["description_html"], "<strong>board instructions</strong>"
+    assert_equal [ "#agent-instructions", "#move-to-done" ], payload["tags"].sort
+    assert_equal [ "Research context", "Update Fizzy" ], payload["steps"].map { |step| step["content"] }
   end
 
   test "write token can create a comment" do
@@ -94,6 +145,46 @@ class McpControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_equal "Larger logo", cards(:logo).reload.title
+  end
+
+  test "write token can update html description and golden ticket metadata idempotently" do
+    card = cards(:text)
+
+    untenanted do
+      post mcp_path,
+        params: tool_call("card_update",
+          account_id: @account_id,
+          card_id: card.id,
+          description: "<p>Follow <a href=\"https://example.com\">ticket source</a>.</p>",
+          tag_titles: [ "#agent-instructions" ],
+          steps: [ "Check ticket email" ],
+          golden: true
+        ).to_json,
+        headers: json_headers(@write_token)
+    end
+
+    assert_response :success
+    card.reload
+    assert_includes card.description.to_s, %(<a href="https://example.com">ticket source</a>)
+    assert_includes card.tags.pluck(:title), "agent-instructions"
+    assert_equal [ "Check ticket email" ], card.steps.pluck(:content)
+    assert card.golden?
+
+    assert_no_difference -> { card.steps.count } do
+      untenanted do
+        post mcp_path,
+          params: tool_call("card_update",
+            account_id: @account_id,
+            card_id: card.id,
+            tag_titles: [ "#agent-instructions" ],
+            steps: [ "Check ticket email" ],
+            golden: true
+          ).to_json,
+          headers: json_headers(@write_token)
+      end
+    end
+
+    assert_response :success
   end
 
   test "search and fetch return company knowledge compatible payloads" do
