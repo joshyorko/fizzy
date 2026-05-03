@@ -1,0 +1,50 @@
+class McpController < ApplicationController
+  skip_before_action :require_account
+  skip_before_action :require_authentication
+  skip_before_action :ensure_can_access_account
+  skip_forgery_protection
+
+  before_action :authenticate_access_token
+
+  def show
+    head :method_not_allowed
+  end
+
+  def create
+    if response = Mcp::Server.new(access_token: @access_token, url_context: self).handle(parsed_message)
+      render json: response
+    else
+      head :accepted
+    end
+  rescue JSON::ParserError
+    render status: :bad_request, json: json_rpc_error(nil, -32700, "Parse error")
+  rescue Mcp::Server::Forbidden => error
+    render status: :forbidden, json: error.response
+  end
+
+  def destroy
+    head :method_not_allowed
+  end
+
+  private
+    def authenticate_access_token
+      if bearer_token.present? && (@access_token = Identity::AccessToken.find_by(token: bearer_token))
+        Current.identity = @access_token.identity
+      else
+        response.headers["WWW-Authenticate"] = %(Bearer realm="Fizzy MCP", resource_metadata="#{oauth_protected_resource_url(script_name: nil)}")
+        render status: :unauthorized, json: { error: "unauthorized" }
+      end
+    end
+
+    def bearer_token
+      request.authorization.to_s[/\ABearer (.+)\z/i, 1]
+    end
+
+    def parsed_message
+      JSON.parse(request.raw_post)
+    end
+
+    def json_rpc_error(id, code, message)
+      { jsonrpc: "2.0", id: id, error: { code: code, message: message } }
+    end
+end

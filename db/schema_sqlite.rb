@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.2].define(version: 2026_02_18_120000) do
+ActiveRecord::Schema[8.2].define(version: 2026_05_01_000002) do
   create_table "accesses", id: :uuid, force: :cascade do |t|
     t.datetime "accessed_at"
     t.uuid "account_id", null: false
@@ -417,6 +417,38 @@ ActiveRecord::Schema[8.2].define(version: 2026_02_18_120000) do
     t.index ["user_id", "card_id"], name: "index_notifications_on_user_id_and_card_id", unique: true
     t.index ["user_id", "read_at", "updated_at"], name: "index_notifications_on_user_id_and_read_at_and_updated_at", order: { read_at: :desc, updated_at: :desc }
     t.index ["user_id"], name: "index_notifications_on_user_id"
+  end
+
+  create_table "oauth_authorization_codes", id: :uuid, force: :cascade do |t|
+    t.uuid "client_id", null: false
+    t.string "code", limit: 255, null: false
+    t.string "code_challenge", limit: 255, null: false
+    t.string "code_challenge_method", limit: 255, null: false
+    t.datetime "created_at", null: false
+    t.datetime "expires_at", null: false
+    t.uuid "identity_id", null: false
+    t.string "redirect_uri", limit: 255, null: false
+    t.string "resource", limit: 255, null: false
+    t.string "scope", limit: 255, null: false
+    t.datetime "updated_at", null: false
+    t.datetime "used_at"
+    t.index ["client_id"], name: "index_oauth_authorization_codes_on_client_id"
+    t.index ["code"], name: "index_oauth_authorization_codes_on_code", unique: true
+    t.index ["expires_at"], name: "index_oauth_authorization_codes_on_expires_at"
+    t.index ["identity_id"], name: "index_oauth_authorization_codes_on_identity_id"
+  end
+
+  create_table "oauth_clients", id: :uuid, force: :cascade do |t|
+    t.string "client_id", limit: 255, null: false
+    t.string "client_name", limit: 255
+    t.datetime "created_at", null: false
+    t.json "grant_types"
+    t.json "redirect_uris", null: false
+    t.json "response_types"
+    t.string "scope", limit: 255, default: "read write", null: false
+    t.string "token_endpoint_auth_method", limit: 255, default: "none", null: false
+    t.datetime "updated_at", null: false
+    t.index ["client_id"], name: "index_oauth_clients_on_client_id", unique: true
   end
 
   create_table "pins", id: :uuid, force: :cascade do |t|
