@@ -34,6 +34,7 @@ jobs:
           set -euo pipefail
           git remote add "$UPSTREAM_REMOTE" "$UPSTREAM_REPO_URL" 2>/dev/null || git remote set-url "$UPSTREAM_REMOTE" "$UPSTREAM_REPO_URL"
           git fetch origin "$TARGET_BRANCH"
+          git fetch origin "$SYNC_BRANCH" || true
           git fetch "$UPSTREAM_REMOTE" "$UPSTREAM_BRANCH"
 
       - name: Create or refresh PR from upstream into self-hosted
@@ -64,6 +65,25 @@ jobs:
                 "repos/$GITHUB_REPOSITORY/git/refs/heads/$SYNC_BRANCH"
             fi
             exit 0
+          fi
+
+          upstream_sha="$(git rev-parse "$UPSTREAM_REMOTE/$UPSTREAM_BRANCH")"
+          sync_sha="$(git rev-parse --verify --quiet "origin/$SYNC_BRANCH" || true)"
+
+          if [ -z "$existing_pr" ] && [ -n "$sync_sha" ] && [ "$sync_sha" = "$upstream_sha" ]; then
+            closed_pr="$(gh pr list \
+              --repo "$GITHUB_REPOSITORY" \
+              --base "$TARGET_BRANCH" \
+              --head "$SYNC_BRANCH" \
+              --state all \
+              --json number,headRefOid,state \
+              --jq ".[] | select(.headRefOid == \"$upstream_sha\" and .state != \"OPEN\") | .number" \
+              | head -n 1)"
+
+            if [ -n "$closed_pr" ]; then
+              echo "No open PR and PR #$closed_pr already covered current $UPSTREAM_REMOTE/$UPSTREAM_BRANCH ($upstream_sha)."
+              exit 0
+            fi
           fi
 
           git checkout --force -B "$SYNC_BRANCH" "$UPSTREAM_REMOTE/$UPSTREAM_BRANCH"
