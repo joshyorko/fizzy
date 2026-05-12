@@ -45,6 +45,17 @@ class Oauth::TokensControllerTest < ActionDispatch::IntegrationTest
     assert @authorization_code.reload.used_at.present?
   end
 
+  test "token exchange accepts omitted resource parameter" do
+    assert_difference -> { identities(:david).access_tokens.count }, +1 do
+      untenanted do
+        post oauth_token_path, params: token_params.except(:resource)
+      end
+    end
+
+    assert_response :success
+    assert @authorization_code.reload.used_at.present?
+  end
+
   private
     def token_params(code_verifier: @verifier)
       {

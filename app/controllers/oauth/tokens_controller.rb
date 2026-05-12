@@ -22,7 +22,7 @@ class Oauth::TokensController < Oauth::BaseController
         if valid_token_request?
           @authorization_code.use
           @authorization_code.identity.access_tokens.create!(
-            description: "ChatGPT (#{@authorization_code.client.client_name.presence || @authorization_code.client.client_id})",
+            description: "MCP OAuth (#{@authorization_code.client.client_name.presence || @authorization_code.client.client_id})",
             permission: Oauth::Scope.permission_for(@authorization_code.scope)
           )
         end
@@ -34,7 +34,11 @@ class Oauth::TokensController < Oauth::BaseController
         params[:grant_type] == "authorization_code" &&
         params[:client_id] == @authorization_code.client.client_id &&
         params[:redirect_uri] == @authorization_code.redirect_uri &&
-        params[:resource] == @authorization_code.resource &&
+        token_resource == @authorization_code.resource &&
         @authorization_code.verifies_pkce?(params[:code_verifier])
+    end
+
+    def token_resource
+      params[:resource].presence || @authorization_code.resource
     end
 end

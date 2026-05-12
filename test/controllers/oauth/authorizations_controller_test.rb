@@ -34,6 +34,21 @@ class Oauth::AuthorizationsControllerTest < ActionDispatch::IntegrationTest
     assert authorization_code.expires_at.future?
   end
 
+  test "consent accepts Codex loopback callback without resource parameter" do
+    @client.update!(client_name: "Codex", redirect_uris: [ codex_redirect_uri ])
+    sign_in_as :david
+
+    assert_difference -> { Oauth::AuthorizationCode.count }, +1 do
+      untenanted do
+        post oauth_authorize_path, params: authorization_params(resource: nil)
+      end
+    end
+
+    authorization_code = Oauth::AuthorizationCode.last
+    assert_redirected_to %r{\Ahttp://127\.0\.0\.1:14567/oauth/callback\?}
+    assert_equal mcp_url(script_name: nil), authorization_code.resource
+  end
+
   test "authorize rejects unknown scopes" do
     sign_in_as :david
 
@@ -58,17 +73,34 @@ class Oauth::AuthorizationsControllerTest < ActionDispatch::IntegrationTest
     assert_match "form-action 'self' https://chatgpt.com https://chat.openai.com", @response.headers["Content-Security-Policy"]
   end
 
+  test "consent page allows registered loopback oauth callback after form post" do
+    @client.update!(client_name: "Codex", redirect_uris: [ codex_redirect_uri ])
+    sign_in_as :david
+
+    untenanted do
+      get oauth_authorize_path, params: authorization_params(resource: nil)
+    end
+
+    assert_response :success
+    assert_match "http://127.0.0.1:14567", @response.headers["Content-Security-Policy"]
+    assert_match "Connect Codex", @response.body
+  end
+
   private
-    def authorization_params(scope: "read write")
+    def authorization_params(scope: "read write", resource: mcp_url(script_name: nil))
       {
         response_type: "code",
         client_id: @client.client_id,
         redirect_uri: @client.redirect_uris.first,
         scope: scope,
         state: "abc123",
-        resource: mcp_url(script_name: nil),
+        resource: resource,
         code_challenge: Oauth::AuthorizationCode.challenge_for(@verifier),
         code_challenge_method: "S256"
       }
+    end
+
+    def codex_redirect_uri
+      "http://127.0.0.1:14567/oauth/callback"
     end
 end

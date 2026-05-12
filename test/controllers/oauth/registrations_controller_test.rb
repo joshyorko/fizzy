@@ -39,6 +39,23 @@ class Oauth::RegistrationsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "read write", @response.parsed_body["scope"]
   end
 
+  test "dynamic registration accepts Codex loopback callback" do
+    assert_difference -> { Oauth::Client.count }, +1 do
+      untenanted do
+        post oauth_register_path,
+          params: {
+            client_name: "Codex",
+            redirect_uris: [ "http://127.0.0.1:14567/oauth/callback" ],
+            scope: "read"
+          },
+          as: :json
+      end
+    end
+
+    assert_response :created
+    assert_equal [ "http://127.0.0.1:14567/oauth/callback" ], @response.parsed_body["redirect_uris"]
+  end
+
   test "dynamic registration rejects invalid redirect schemes" do
     assert_no_difference -> { Oauth::Client.count } do
       untenanted do

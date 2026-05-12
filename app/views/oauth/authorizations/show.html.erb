@@ -1,10 +1,11 @@
-<% @page_title = "Connect ChatGPT" %>
+<% client_name = @client.client_name.presence || "MCP client" %>
+<% @page_title = "Connect #{client_name}" %>
 
 <section class="panel panel--centered flex flex-column gap">
   <header class="flex flex-column gap-half">
-    <h1 class="txt-x-large font-weight-black margin-none">Connect ChatGPT</h1>
+    <h1 class="txt-x-large font-weight-black margin-none">Connect <%= client_name %></h1>
     <p class="txt-medium txt-balance margin-none">
-      <strong><%= @client.client_name.presence || "ChatGPT" %></strong> wants access to your active Fizzy accounts for this identity.
+      <strong><%= client_name %></strong> wants access to your active Fizzy accounts for this identity.
     </p>
   </header>
 

@@ -2,7 +2,7 @@ class Oauth::AuthorizationsController < Oauth::BaseController
   layout "public"
 
   content_security_policy only: :show do |policy|
-    policy.form_action :self, "https://chatgpt.com", "https://chat.openai.com"
+    policy.form_action :self, "https://chatgpt.com", "https://chat.openai.com", -> { oauth_redirect_form_action_source }
   end
 
   before_action :set_authorization_request
@@ -30,7 +30,7 @@ class Oauth::AuthorizationsController < Oauth::BaseController
       @requested_scope = params[:scope].presence || @client.scope
       @scope = Oauth::Scope.normalize(@requested_scope) if Oauth::Scope.valid?(@requested_scope)
       @state = params[:state]
-      @resource = params[:resource].to_s
+      @resource = params[:resource].presence || mcp_resource_url
       @code_challenge = params[:code_challenge].to_s
       @code_challenge_method = params[:code_challenge_method].to_s
 
@@ -63,6 +63,20 @@ class Oauth::AuthorizationsController < Oauth::BaseController
       query = Rack::Utils.parse_nested_query(uri.query).merge(params.compact)
       uri.query = query.to_query
       uri.to_s
+    end
+
+    def oauth_redirect_form_action_source
+      return unless @client&.redirect_uri_allowed?(@redirect_uri)
+
+      uri = URI.parse(@redirect_uri)
+
+      if uri.is_a?(URI::HTTP)
+        uri.origin
+      elsif uri.scheme.present?
+        "#{uri.scheme}:"
+      end
+    rescue URI::InvalidURIError
+      nil
     end
 
     def request_authentication
