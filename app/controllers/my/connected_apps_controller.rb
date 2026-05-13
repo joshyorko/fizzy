@@ -6,7 +6,7 @@ class My::ConnectedAppsController < ApplicationController
   end
 
   def destroy
-    Current.identity.access_tokens.oauth.where(oauth_client_id: params[:id]).delete_all
+    Current.identity.access_tokens.oauth.where(oauth_client_id: params[:id]).destroy_all
 
     redirect_to my_connected_apps_path
   end

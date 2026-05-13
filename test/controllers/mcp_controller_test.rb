@@ -74,7 +74,7 @@ class McpControllerTest < ActionDispatch::IntegrationTest
         headers: json_headers(@read_token).merge("MCP-Protocol-Version" => "2024-11-05")
     end
 
-    assert_response :success
+    assert_response :bad_request
     assert_equal -32602, @response.parsed_body.dig("error", "code")
   end
 
@@ -271,6 +271,19 @@ class McpControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert card.reload.closed?
+  end
+
+  test "write token can move a card with destination alias" do
+    card = cards(:logo)
+
+    untenanted do
+      post mcp_path,
+        params: tool_call("move_card", account_id: @account_id, card_id: card.id, destination: "next").to_json,
+        headers: json_headers(@write_token)
+    end
+
+    assert_response :success
+    assert_equal columns(:writebook_in_progress), card.reload.column
   end
 
   test "read token cannot move a card" do

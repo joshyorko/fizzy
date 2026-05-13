@@ -76,6 +76,7 @@ class Mcp::Toolbox
           account_id: string_schema("Account id or account slug"),
           card_id: string_schema("Card id or card number"),
           target: string_schema("Move target: done, backlog, next, or exact column name"),
+          destination: string_schema("Alias for target, accepted for compatibility"),
           column_id: string_schema("Column id. When present, this takes precedence over target.")
         }, required: [ "card_id" ]),
         read_tool("comment_list", "List comments", "List comments on an accessible card.", {
@@ -291,7 +292,7 @@ class Mcp::Toolbox
 
   def move_card(arguments)
     with_found_card(arguments) do |account, user, card|
-      target = arguments["target"].to_s.strip
+      target = move_target(arguments)
 
       if target.downcase == "done" && arguments["column_id"].blank?
         card.close(user: user)
@@ -441,7 +442,7 @@ class Mcp::Toolbox
     def move_target_column(card, arguments)
       return card.board.columns.find(arguments["column_id"]) if arguments["column_id"].present?
 
-      case normalized_move_target(arguments["target"])
+      case normalized_move_target(move_target(arguments))
       when "backlog"
         card.board.columns.sorted.first || raise(Error.new("Column not found", code: -32004))
       when "next"
@@ -449,9 +450,13 @@ class Mcp::Toolbox
       when ""
         raise Error.new("target or column_id is required", code: -32602)
       else
-        card.board.columns.detect { |column| normalized_move_target(column.name) == normalized_move_target(arguments["target"]) } ||
+        card.board.columns.detect { |column| normalized_move_target(column.name) == normalized_move_target(move_target(arguments)) } ||
           raise(Error.new("Column not found", code: -32004))
       end
+    end
+
+    def move_target(arguments)
+      (arguments["target"].presence || arguments["destination"]).to_s.strip
     end
 
     def normalized_move_target(target)

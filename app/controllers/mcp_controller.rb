@@ -27,7 +27,11 @@ class McpController < ApplicationController
   end
 
   def create
-    if response = Mcp::Server.new(access_token: @access_token, url_context: self, protocol_version: request.headers["MCP-Protocol-Version"]).handle(parsed_message)
+    message = parsed_message
+
+    if unsupported_protocol_header?
+      render status: :bad_request, json: json_rpc_error(json_rpc_id(message), -32602, "Unsupported protocol version")
+    elsif response = Mcp::Server.new(access_token: @access_token, url_context: self).handle(message)
       render json: response
     else
       head :accepted
@@ -62,5 +66,13 @@ class McpController < ApplicationController
 
     def json_rpc_error(id, code, message)
       { jsonrpc: "2.0", id: id, error: { code: code, message: message } }
+    end
+
+    def unsupported_protocol_header?
+      request.headers["MCP-Protocol-Version"].present? && request.headers["MCP-Protocol-Version"] != Mcp::Server::PROTOCOL_VERSION
+    end
+
+    def json_rpc_id(message)
+      message["id"] if message.is_a?(Hash)
     end
 end

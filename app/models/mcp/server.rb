@@ -9,10 +9,9 @@ class Mcp::Server
     end
   end
 
-  def initialize(access_token:, url_context:, protocol_version: nil)
+  def initialize(access_token:, url_context:)
     @access_token = access_token
     @url_context = url_context
-    @protocol_version = protocol_version
   end
 
   def handle(message)
@@ -46,24 +45,14 @@ class Mcp::Server
           error(message["id"], -32602, "Unsupported protocol version")
         end
       when "ping"
-        return unsupported_protocol_version_error(message) unless header_protocol_version_supported?
-
         response(message["id"], {})
       when "tools/list"
-        return unsupported_protocol_version_error(message) unless header_protocol_version_supported?
-
         response(message["id"], { tools: Mcp::Toolbox.tool_definitions })
       when "tools/call"
-        return unsupported_protocol_version_error(message) unless header_protocol_version_supported?
-
         response(message["id"], toolbox.call(message.dig("params", "name"), message.dig("params", "arguments") || {}))
       when "resources/list"
-        return unsupported_protocol_version_error(message) unless header_protocol_version_supported?
-
         response(message["id"], { resources: resources.list })
       when "resources/read"
-        return unsupported_protocol_version_error(message) unless header_protocol_version_supported?
-
         response(message["id"], resources.read(message.dig("params", "uri")))
       else
         error(message["id"], -32601, "Method not found")
@@ -87,14 +76,6 @@ class Mcp::Server
 
     def supported_protocol_version?(protocol_version)
       protocol_version.blank? || protocol_version == PROTOCOL_VERSION
-    end
-
-    def header_protocol_version_supported?
-      supported_protocol_version?(@protocol_version)
-    end
-
-    def unsupported_protocol_version_error(message)
-      error(message["id"], -32602, "Unsupported protocol version")
     end
 
     def toolbox
