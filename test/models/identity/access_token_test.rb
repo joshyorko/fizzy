@@ -15,5 +15,4 @@ class Identity::AccessTokenTest < ActiveSupport::TestCase
     assert_includes Identity::AccessToken.oauth, oauth_token
     assert_not_includes Identity::AccessToken.oauth, personal_token
   end
-
 end
