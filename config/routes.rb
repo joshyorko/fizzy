@@ -5,11 +5,14 @@ Rails.application.routes.draw do
     as: :oauth_protected_resource, defaults: { format: :json }, format: false
   get "/.well-known/oauth-authorization-server", to: "oauth/metadata#authorization_server",
     as: :oauth_authorization_server, defaults: { format: :json }, format: false
+  get "/.well-known/mcp.json", to: "mcp#discovery",
+    as: :mcp_discovery, defaults: { format: :json }, format: false
 
   post "/oauth/register", to: "oauth/registrations#create", as: :oauth_register, defaults: { format: :json }
   get "/oauth/authorize", to: "oauth/authorizations#show", as: :oauth_authorize
   post "/oauth/authorize", to: "oauth/authorizations#create"
   post "/oauth/token", to: "oauth/tokens#create", as: :oauth_token, defaults: { format: :json }
+  post "/oauth/revoke", to: "oauth/revocations#create", as: :oauth_revoke, defaults: { format: :json }
 
   get "/mcp", to: "mcp#show", as: :mcp
   post "/mcp", to: "mcp#create"
@@ -196,6 +199,7 @@ Rails.application.routes.draw do
     resource :passkey_challenge, only: :create
     resource :identity, only: :show
     resources :access_tokens
+    resources :connected_apps, only: [ :index, :destroy ]
     resources :passkeys, except: %i[ show new ]
     resources :pins
     resource :timezone

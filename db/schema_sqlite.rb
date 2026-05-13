@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.2].define(version: 2026_05_01_000002) do
+ActiveRecord::Schema[8.2].define(version: 2026_05_13_114252) do
   create_table "accesses", id: :uuid, force: :cascade do |t|
     t.datetime "accessed_at"
     t.uuid "account_id", null: false
@@ -354,10 +354,12 @@ ActiveRecord::Schema[8.2].define(version: 2026_05_01_000002) do
     t.datetime "created_at", null: false
     t.text "description", limit: 65535
     t.uuid "identity_id", null: false
+    t.uuid "oauth_client_id"
     t.string "permission", limit: 255
     t.string "token", limit: 255
     t.datetime "updated_at", null: false
     t.index ["identity_id"], name: "index_access_token_on_identity_id"
+    t.index ["oauth_client_id"], name: "index_identity_access_tokens_on_oauth_client_id"
   end
 
   create_table "magic_links", id: :uuid, force: :cascade do |t|
@@ -661,6 +663,8 @@ ActiveRecord::Schema[8.2].define(version: 2026_05_01_000002) do
     t.index ["account_id"], name: "index_webhooks_on_account_id"
     t.index ["board_id", "subscribed_actions"], name: "index_webhooks_on_board_id_and_subscribed_actions"
   end
+
+  add_foreign_key "identity_access_tokens", "oauth_clients"
   execute "CREATE VIRTUAL TABLE search_records_fts USING fts5(\n        title,\n        content,\n        tokenize='porter'\n      )"
 
 end

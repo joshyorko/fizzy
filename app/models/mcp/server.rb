@@ -39,13 +39,21 @@ class Mcp::Server
     def dispatch(message)
       case message["method"]
       when "initialize"
-        response(message["id"], initialize_result(message.dig("params", "protocolVersion")))
+        if supported_protocol_version?(message.dig("params", "protocolVersion"))
+          response(message["id"], initialize_result)
+        else
+          error(message["id"], -32602, "Unsupported protocol version")
+        end
       when "ping"
         response(message["id"], {})
       when "tools/list"
         response(message["id"], { tools: Mcp::Toolbox.tool_definitions })
       when "tools/call"
         response(message["id"], toolbox.call(message.dig("params", "name"), message.dig("params", "arguments") || {}))
+      when "resources/list"
+        response(message["id"], { resources: resources.list })
+      when "resources/read"
+        response(message["id"], resources.read(message.dig("params", "uri")))
       else
         error(message["id"], -32601, "Method not found")
       end
@@ -55,16 +63,27 @@ class Mcp::Server
       error(message["id"], exception.code, exception.message)
     end
 
-    def initialize_result(requested_protocol_version)
+    def initialize_result
       {
-        protocolVersion: requested_protocol_version.presence || PROTOCOL_VERSION,
-        capabilities: { tools: { listChanged: false } },
+        protocolVersion: PROTOCOL_VERSION,
+        capabilities: {
+          tools: { listChanged: false },
+          resources: { listChanged: false }
+        },
         serverInfo: { name: "fizzy", title: "Fizzy", version: "1.0.0" }
       }
     end
 
+    def supported_protocol_version?(protocol_version)
+      protocol_version.blank? || protocol_version == PROTOCOL_VERSION
+    end
+
     def toolbox
       @toolbox ||= Mcp::Toolbox.new(access_token: @access_token, url_context: @url_context)
+    end
+
+    def resources
+      @resources ||= Mcp::Resources.new(access_token: @access_token, url_context: @url_context)
     end
 
     def response(id, result)

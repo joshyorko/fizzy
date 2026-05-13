@@ -1,5 +1,6 @@
 class Oauth::RegistrationsController < Oauth::BaseController
   allow_unauthenticated_access
+  rate_limit to: 30, within: 5.minutes, only: :create, with: -> { render status: :too_many_requests, json: { error: "rate_limited" } }
 
   def create
     client = Oauth::Client.new(client_params)

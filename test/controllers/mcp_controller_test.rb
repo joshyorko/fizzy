@@ -17,6 +17,21 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_match oauth_protected_resource_url(script_name: nil), @response.headers["WWW-Authenticate"]
   end
 
+  test "discovery advertises tools resources and oauth metadata" do
+    untenanted do
+      get mcp_discovery_path
+    end
+
+    assert_response :success
+    discovery = @response.parsed_body
+    assert_equal "Fizzy", discovery["title"]
+    assert_equal "2025-06-18", discovery["protocolVersion"]
+    assert discovery.dig("capabilities", "tools").present?
+    assert discovery.dig("capabilities", "resources").present?
+    assert_equal oauth_authorization_server_url(script_name: nil), discovery["authorization_server"]
+    assert_equal oauth_protected_resource_url(script_name: nil), discovery["protected_resource"]
+  end
+
   test "invalid bearer token is rejected" do
     untenanted do
       post mcp_path, params: json_rpc("initialize").to_json, headers: json_headers("nonsense")
@@ -40,6 +55,27 @@ class McpControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_kind_of Array, @response.parsed_body.dig("result", "structuredContent", "accounts")
+  end
+
+  test "unsupported initialize protocol version is rejected" do
+    untenanted do
+      post mcp_path, params: json_rpc("initialize", params: { protocolVersion: "2024-11-05" }).to_json,
+        headers: json_headers(@read_token)
+    end
+
+    assert_response :success
+    assert_equal -32602, @response.parsed_body.dig("error", "code")
+    assert_equal "Unsupported protocol version", @response.parsed_body.dig("error", "message")
+  end
+
+  test "unsupported protocol header is rejected after initialize" do
+    untenanted do
+      post mcp_path, params: json_rpc("tools/list").to_json,
+        headers: json_headers(@read_token).merge("MCP-Protocol-Version" => "2024-11-05")
+    end
+
+    assert_response :bad_request
+    assert_equal -32602, @response.parsed_body.dig("error", "code")
   end
 
   test "read token cannot call write tool" do
@@ -69,6 +105,7 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_equal "array", card_update.dig("inputSchema", "properties", "tag_titles", "type")
     assert_equal "array", card_update.dig("inputSchema", "properties", "steps", "type")
     assert_equal "boolean", card_update.dig("inputSchema", "properties", "golden", "type")
+    assert tools.any? { |tool| tool["name"] == "move_card" }
   end
 
   test "write token can create a card" do
@@ -187,6 +224,94 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  test "write token can move a card by ergonomic targets and column id" do
+    card = cards(:logo)
+
+    untenanted do
+      post mcp_path,
+        params: tool_call("move_card", account_id: @account_id, card_id: card.id, target: "next").to_json,
+        headers: json_headers(@write_token)
+    end
+
+    assert_response :success
+    assert_equal columns(:writebook_in_progress), card.reload.column
+
+    untenanted do
+      post mcp_path,
+        params: tool_call("move_card", account_id: @account_id, card_id: card.id, target: "backlog").to_json,
+        headers: json_headers(@write_token)
+    end
+
+    assert_response :success
+    assert_equal columns(:writebook_triage), card.reload.column
+
+    untenanted do
+      post mcp_path,
+        params: tool_call("move_card", account_id: @account_id, card_id: card.id, target: "Review").to_json,
+        headers: json_headers(@write_token)
+    end
+
+    assert_response :success
+    assert_equal columns(:writebook_review), card.reload.column
+
+    untenanted do
+      post mcp_path,
+        params: tool_call("move_card", account_id: @account_id, card_id: card.id, column_id: columns(:writebook_on_hold).id, target: "ignored").to_json,
+        headers: json_headers(@write_token)
+    end
+
+    assert_response :success
+    assert_equal columns(:writebook_on_hold), card.reload.column
+
+    untenanted do
+      post mcp_path,
+        params: tool_call("move_card", account_id: @account_id, card_id: card.id, target: "done").to_json,
+        headers: json_headers(@write_token)
+    end
+
+    assert_response :success
+    assert card.reload.closed?
+  end
+
+  test "write token can move a card with destination alias" do
+    card = cards(:logo)
+
+    untenanted do
+      post mcp_path,
+        params: tool_call("move_card", account_id: @account_id, card_id: card.id, destination: "next").to_json,
+        headers: json_headers(@write_token)
+    end
+
+    assert_response :success
+    assert_equal columns(:writebook_in_progress), card.reload.column
+  end
+
+  test "read token cannot move a card" do
+    untenanted do
+      post mcp_path,
+        params: tool_call("move_card", account_id: @account_id, card_id: cards(:logo).id, target: "next").to_json,
+        headers: json_headers(@read_token)
+    end
+
+    assert_response :forbidden
+  end
+
+  test "resources list and read account board and card resources" do
+    untenanted do
+      post mcp_path, params: json_rpc("resources/list").to_json, headers: json_headers(@write_token)
+    end
+
+    assert_response :success
+    resources = @response.parsed_body.dig("result", "resources")
+    assert resources.any? { |resource| resource["uri"] == "fizzy://accounts" }
+    assert resources.any? { |resource| resource["uri"] == "fizzy://accounts/#{accounts(:'37s').id}/overview" }
+
+    assert_resource_read "fizzy://accounts", "accounts"
+    assert_resource_read "fizzy://accounts/#{accounts(:'37s').id}/overview", "account"
+    assert_resource_read "fizzy://accounts/#{accounts(:'37s').id}/boards/#{boards(:writebook).id}", "board"
+    assert_resource_read "fizzy://accounts/#{accounts(:'37s').id}/cards/#{cards(:logo).id}", "card"
+  end
+
   test "search and fetch return company knowledge compatible payloads" do
     cards(:logo).update!(description: "The mark should be larger.")
     cards(:logo).reindex
@@ -228,5 +353,17 @@ class McpControllerTest < ActionDispatch::IntegrationTest
 
     def tool_call(name, **arguments)
       json_rpc("tools/call", params: { name: name, arguments: arguments })
+    end
+
+    def assert_resource_read(uri, expected_key)
+      untenanted do
+        post mcp_path, params: json_rpc("resources/read", params: { uri: uri }).to_json, headers: json_headers(@write_token)
+      end
+
+      assert_response :success
+      content = @response.parsed_body.dig("result", "contents").first
+      assert_equal uri, content["uri"]
+      assert_equal "application/json", content["mimeType"]
+      assert JSON.parse(content["text"])[expected_key].present?
     end
 end

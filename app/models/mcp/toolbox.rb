@@ -14,7 +14,7 @@ class Mcp::Toolbox
     end
   end
 
-  WRITE_TOOLS = %w[ card_create card_update comment_create ].freeze
+  WRITE_TOOLS = %w[ card_create card_update move_card comment_create ].freeze
 
   class << self
     def tool_definitions
@@ -71,6 +71,13 @@ class Mcp::Toolbox
           tag_titles: array_schema("Tag titles to apply, with or without leading #. Use #agent-instructions, #move-to-done, #close-on-complete, or #move-to-<column> for agent workflow cards."),
           steps: array_schema("Checklist step contents to create on the card. Existing matching steps are not duplicated."),
           golden: boolean_schema("Whether to mark the card with Fizzy's native golden marker.")
+        }, required: [ "card_id" ]),
+        write_tool("move_card", "Move card", "Move a card to done, backlog, next, an exact column name, or a column id.", {
+          account_id: string_schema("Account id or account slug"),
+          card_id: string_schema("Card id or card number"),
+          target: string_schema("Move target: done, backlog, next, or exact column name"),
+          destination: string_schema("Alias for target, accepted for compatibility"),
+          column_id: string_schema("Column id. When present, this takes precedence over target.")
         }, required: [ "card_id" ]),
         read_tool("comment_list", "List comments", "List comments on an accessible card.", {
           account_id: string_schema("Account id or account slug"),
@@ -283,6 +290,28 @@ class Mcp::Toolbox
     end
   end
 
+  def move_card(arguments)
+    with_found_card(arguments) do |account, user, card|
+      target = move_target(arguments)
+
+      if target.downcase == "done" && arguments["column_id"].blank?
+        card.close(user: user)
+      else
+        column = move_target_column(card, arguments)
+
+        Card.transaction do
+          card.resume
+          card.update!(column: column)
+        end
+      end
+
+      {
+        card: card_hash(account, card.reload),
+        metadata: card_metadata(account, card)
+      }
+    end
+  end
+
   def comment_list(arguments)
     account, _user, card = find_card(arguments)
 
@@ -408,6 +437,30 @@ class Mcp::Toolbox
       apply_golden(card, arguments["golden"]) if arguments.key?("golden")
       apply_tags(card, arguments["tag_titles"]) if arguments.key?("tag_titles")
       apply_steps(card, arguments["steps"]) if arguments.key?("steps")
+    end
+
+    def move_target_column(card, arguments)
+      return card.board.columns.find(arguments["column_id"]) if arguments["column_id"].present?
+
+      case normalized_move_target(move_target(arguments))
+      when "backlog"
+        card.board.columns.sorted.first || raise(Error.new("Column not found", code: -32004))
+      when "next"
+        card.column&.right_column || raise(Error.new("Next column not found", code: -32004))
+      when ""
+        raise Error.new("target or column_id is required", code: -32602)
+      else
+        card.board.columns.detect { |column| normalized_move_target(column.name) == normalized_move_target(move_target(arguments)) } ||
+          raise(Error.new("Column not found", code: -32004))
+      end
+    end
+
+    def move_target(arguments)
+      (arguments["target"].presence || arguments["destination"]).to_s.strip
+    end
+
+    def normalized_move_target(target)
+      target.to_s.strip.downcase
     end
 
     def apply_golden(card, value)

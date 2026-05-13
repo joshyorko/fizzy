@@ -2,6 +2,7 @@ class Oauth::Client < ApplicationRecord
   self.table_name = "oauth_clients"
 
   has_many :authorization_codes, class_name: "Oauth::AuthorizationCode", dependent: :destroy
+  has_many :access_tokens, class_name: "Identity::AccessToken", dependent: :nullify
 
   before_validation :set_client_id, on: :create
   before_validation :normalize_attributes
