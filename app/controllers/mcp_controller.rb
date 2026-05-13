@@ -10,6 +10,21 @@ class McpController < ApplicationController
     head :method_not_allowed
   end
 
+  def discovery
+    render json: {
+      name: "fizzy",
+      title: "Fizzy",
+      version: "1.0.0",
+      protocolVersion: Mcp::Server::PROTOCOL_VERSION,
+      capabilities: { tools: true, resources: true },
+      endpoints: {
+        mcp: mcp_url(script_name: nil),
+        authorization_server_metadata: oauth_authorization_server_url(script_name: nil),
+        protected_resource_metadata: oauth_protected_resource_url(script_name: nil)
+      }
+    }
+  end
+
   def create
     if response = Mcp::Server.new(access_token: @access_token, url_context: self).handle(parsed_message)
       render json: response

@@ -77,6 +77,12 @@ class Mcp::Toolbox
           card_id: string_schema("Card id or card number"),
           limit: integer_schema("Maximum results")
         }, required: [ "card_id" ]),
+        write_tool("move_card", "Move card", "Move an accessible card to a workflow destination.", {
+          account_id: string_schema("Account id or account slug"),
+          card_id: string_schema("Card id or card number"),
+          destination: string_schema("done, backlog, next, or exact column name"),
+          column_id: string_schema("Column id override")
+        }, required: [ "card_id" ]),
         write_tool("comment_create", "Create comment", "Create a comment on an accessible card.", {
           account_id: string_schema("Account id or account slug"),
           card_id: string_schema("Card id or card number"),
@@ -281,6 +287,27 @@ class Mcp::Toolbox
         metadata: card_metadata(account, card)
       }
     end
+  end
+
+  def move_card(arguments)
+    account, user, card = find_card(arguments)
+    destination = arguments["destination"].to_s
+
+    column = if arguments["column_id"].present?
+      user.accessible_columns.find(arguments["column_id"])
+    elsif destination == "done"
+      card.board.columns.closed
+    elsif destination == "backlog"
+      nil
+    elsif destination == "next"
+      card.board.columns.first
+    elsif destination.present?
+      card.board.columns.find_by!("lower(name) = ?", destination.downcase)
+    end
+
+    card.update!(column: column)
+
+    { card: card_hash(account, card.reload) }
   end
 
   def comment_list(arguments)

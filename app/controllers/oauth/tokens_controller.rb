@@ -14,6 +14,11 @@ class Oauth::TokensController < Oauth::BaseController
     end
   end
 
+  def destroy
+    Identity::AccessToken.find_by(token: params[:token])&.destroy!
+    head :ok
+  end
+
   private
     def exchange_authorization_code
       Oauth::AuthorizationCode.transaction do
@@ -23,7 +28,8 @@ class Oauth::TokensController < Oauth::BaseController
           @authorization_code.use
           @authorization_code.identity.access_tokens.create!(
             description: "MCP OAuth (#{@authorization_code.client.client_name.presence || @authorization_code.client.client_id})",
-            permission: Oauth::Scope.permission_for(@authorization_code.scope)
+            permission: Oauth::Scope.permission_for(@authorization_code.scope),
+            oauth_client: @authorization_code.client
           )
         end
       end

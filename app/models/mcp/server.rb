@@ -37,6 +37,8 @@ class Mcp::Server
     end
 
     def dispatch(message)
+      enforce_protocol_version!(message)
+
       case message["method"]
       when "initialize"
         response(message["id"], initialize_result(message.dig("params", "protocolVersion")))
@@ -46,6 +48,10 @@ class Mcp::Server
         response(message["id"], { tools: Mcp::Toolbox.tool_definitions })
       when "tools/call"
         response(message["id"], toolbox.call(message.dig("params", "name"), message.dig("params", "arguments") || {}))
+      when "resources/list"
+        response(message["id"], resources.list)
+      when "resources/read"
+        response(message["id"], resources.read(message.dig("params", "uri")))
       else
         error(message["id"], -32601, "Method not found")
       end
@@ -58,13 +64,23 @@ class Mcp::Server
     def initialize_result(requested_protocol_version)
       {
         protocolVersion: requested_protocol_version.presence || PROTOCOL_VERSION,
-        capabilities: { tools: { listChanged: false } },
+        capabilities: { tools: { listChanged: false }, resources: { listChanged: false, subscribe: false } },
         serverInfo: { name: "fizzy", title: "Fizzy", version: "1.0.0" }
       }
     end
 
+    def enforce_protocol_version!(message)
+      if message["method"] != "initialize" && @url_context.request.headers["MCP-Protocol-Version"].present? && @url_context.request.headers["MCP-Protocol-Version"] != PROTOCOL_VERSION
+        raise Mcp::Toolbox::Error.new("Unsupported MCP protocol version", code: -32600)
+      end
+    end
+
     def toolbox
       @toolbox ||= Mcp::Toolbox.new(access_token: @access_token, url_context: @url_context)
+    end
+
+    def resources
+      @resources ||= Mcp::Resources.new(access_token: @access_token, url_context: @url_context)
     end
 
     def response(id, result)
