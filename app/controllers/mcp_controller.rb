@@ -4,14 +4,30 @@ class McpController < ApplicationController
   skip_before_action :ensure_can_access_account
   skip_forgery_protection
 
-  before_action :authenticate_access_token
+  before_action :authenticate_access_token, except: :discovery
+
+  def discovery
+    render json: {
+      name: "fizzy",
+      title: "Fizzy",
+      version: "1.0.0",
+      protocolVersion: Mcp::Server::PROTOCOL_VERSION,
+      capabilities: {
+        tools: { listChanged: false },
+        resources: { listChanged: false }
+      },
+      endpoint: mcp_url(script_name: nil),
+      authorization_server: oauth_authorization_server_url(script_name: nil),
+      protected_resource: oauth_protected_resource_url(script_name: nil)
+    }
+  end
 
   def show
     head :method_not_allowed
   end
 
   def create
-    if response = Mcp::Server.new(access_token: @access_token, url_context: self).handle(parsed_message)
+    if response = Mcp::Server.new(access_token: @access_token, url_context: self, protocol_version: request.headers["MCP-Protocol-Version"]).handle(parsed_message)
       render json: response
     else
       head :accepted

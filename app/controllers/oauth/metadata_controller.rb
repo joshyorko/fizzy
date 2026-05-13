@@ -16,6 +16,7 @@ class Oauth::MetadataController < Oauth::BaseController
       issuer: issuer_url,
       authorization_endpoint: oauth_authorize_url(script_name: nil),
       token_endpoint: oauth_token_url(script_name: nil),
+      revocation_endpoint: oauth_revoke_url(script_name: nil),
       registration_endpoint: oauth_register_url(script_name: nil),
       response_types_supported: [ "code" ],
       grant_types_supported: [ "authorization_code" ],

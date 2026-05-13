@@ -22,6 +22,7 @@ class Oauth::MetadataControllerTest < ActionDispatch::IntegrationTest
     metadata = @response.parsed_body
     assert_equal oauth_authorize_url(script_name: nil), metadata["authorization_endpoint"]
     assert_equal oauth_token_url(script_name: nil), metadata["token_endpoint"]
+    assert_equal oauth_revoke_url(script_name: nil), metadata["revocation_endpoint"]
     assert_equal oauth_register_url(script_name: nil), metadata["registration_endpoint"]
     assert_equal [ "S256" ], metadata["code_challenge_methods_supported"]
     assert_equal [ "none" ], metadata["token_endpoint_auth_methods_supported"]

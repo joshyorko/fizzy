@@ -1,0 +1,44 @@
+<% @page_title = "Connected apps" %>
+
+<% content_for :header do %>
+  <div class="header__actions header__actions--start">
+    <%= back_link_to "My profile", user_path(Current.user), "keydown.left@document->hotkey#click keydown.esc@document->hotkey#click" %>
+  </div>
+
+  <h1 class="header__title" data-bridge--title-target="header"><%= @page_title %></h1>
+<% end %>
+
+<section class="panel panel--wide shadow center webhooks">
+  <% if @connected_apps.any? %>
+    <p class="margin-none-block-start">Apps connected to your Fizzy account through OAuth.</p>
+    <table class="access-tokens margin-block-end-double max-width txt-small">
+      <thead>
+        <tr>
+          <th>App</th>
+          <th>Tokens</th>
+          <th>Connected</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @connected_apps.each do |client, tokens| %>
+          <tr>
+            <td><strong><%= client.client_name.presence || client.client_id %></strong></td>
+            <td><%= tokens.size %></td>
+            <td><%= local_datetime_tag tokens.map(&:created_at).min, style: :datetime %></td>
+            <td>
+              <%= button_to my_connected_app_path(client), method: :delete,
+                    class: "btn txt-negative btn--circle txt-x-small borderless fill-transparent",
+                    data: { turbo_confirm: "Disconnect this app and revoke its OAuth tokens?" } do %>
+                <%= icon_tag "trash" %>
+                <span class="for-screen-reader">Disconnect this app</span>
+              <% end %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <p class="margin-none-block-start">You have not connected any OAuth apps to Fizzy.</p>
+  <% end %>
+</section>

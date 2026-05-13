@@ -1,6 +1,7 @@
 class Oauth::TokensController < Oauth::BaseController
   allow_unauthenticated_access
   skip_forgery_protection
+  rate_limit to: 30, within: 5.minutes, only: :create, with: -> { render status: :too_many_requests, json: { error: "rate_limited" } }
 
   def create
     if access_token = exchange_authorization_code
@@ -23,7 +24,8 @@ class Oauth::TokensController < Oauth::BaseController
           @authorization_code.use
           @authorization_code.identity.access_tokens.create!(
             description: "MCP OAuth (#{@authorization_code.client.client_name.presence || @authorization_code.client.client_id})",
-            permission: Oauth::Scope.permission_for(@authorization_code.scope)
+            permission: Oauth::Scope.permission_for(@authorization_code.scope),
+            oauth_client: @authorization_code.client
           )
         end
       end

@@ -42,6 +42,7 @@ class Oauth::TokensControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Bearer", body["token_type"]
     assert_equal "read write", body["scope"]
     assert identities(:david).access_tokens.last.write?
+    assert_equal @client, identities(:david).access_tokens.last.oauth_client
     assert @authorization_code.reload.used_at.present?
   end
 
