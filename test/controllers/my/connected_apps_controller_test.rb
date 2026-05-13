@@ -13,7 +13,9 @@ class My::ConnectedAppsControllerTest < ActionDispatch::IntegrationTest
   test "index lists connected oauth apps" do
     identities(:david).access_tokens.create!(description: "ChatGPT", permission: "read", oauth_client: @client)
 
-    get my_connected_apps_path
+    untenanted do
+      get my_connected_apps_path
+    end
 
     assert_response :success
     assert_in_body "Connected apps"
