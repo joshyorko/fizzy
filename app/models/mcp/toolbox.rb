@@ -14,7 +14,7 @@ class Mcp::Toolbox
     end
   end
 
-  WRITE_TOOLS = %w[ card_create card_update move_card comment_create ].freeze
+  WRITE_TOOLS = %w[ board_create card_create card_update move_card comment_create ].freeze
 
   class << self
     def tool_definitions
@@ -42,6 +42,14 @@ class Mcp::Toolbox
           account_id: string_schema("Account id or account slug"),
           board_id: string_schema("Board id")
         }, required: [ "account_id", "board_id" ]),
+        write_tool("board_create", "Create board", "Create a board in an account, optionally with initial columns.", {
+          account_id: string_schema("Account id or account slug"),
+          name: string_schema("Board name"),
+          title: string_schema("Alias for name, accepted for compatibility"),
+          description: rich_text_schema("Board public description"),
+          columns: array_schema("Initial column names to create on the board."),
+          initial_columns: array_schema("Alias for columns, accepted for compatibility.")
+        }, required: [ "account_id", "name" ]),
         read_tool("card_list", "List cards", "List accessible cards in an account, board, or column.", {
           account_id: string_schema("Account id or account slug"),
           board_id: string_schema("Board id"),
@@ -218,6 +226,30 @@ class Mcp::Toolbox
       board = user.boards.find(required_argument(arguments, "board_id"))
 
       {
+        columns: board.columns.sorted.map { |column| column_hash(column) }
+      }
+    end
+  end
+
+  def board_create(arguments)
+    with_account(required_account_identifier(arguments)) do |_account, user|
+      board = nil
+
+      Board.transaction do
+        board = Board.create!(
+          name: board_name(arguments),
+          public_description: arguments["description"],
+          creator: user,
+          all_access: true
+        )
+
+        initial_column_names(arguments).each do |name|
+          board.columns.create!(name: name)
+        end
+      end
+
+      {
+        board: board_hash(board.reload).merge(board_description_hash(board)),
         columns: board.columns.sorted.map { |column| column_hash(column) }
       }
     end
@@ -439,6 +471,14 @@ class Mcp::Toolbox
       apply_steps(card, arguments["steps"]) if arguments.key?("steps")
     end
 
+    def board_name(arguments)
+      arguments["name"].presence || arguments["title"].presence || raise(Error.new("name is required", code: -32602))
+    end
+
+    def initial_column_names(arguments)
+      array_argument(arguments["columns"].presence || arguments["initial_columns"]).map(&:to_s).map(&:strip).reject(&:blank?)
+    end
+
     def move_target_column(card, arguments)
       return card.board.columns.find(arguments["column_id"]) if arguments["column_id"].present?
 
@@ -521,8 +561,16 @@ class Mcp::Toolbox
         id: board.id,
         name: board.name,
         all_access: board.all_access?,
+        url: @url_context.board_url(board, script_name: board.account.slug),
         created_at: board.created_at.utc.iso8601,
         auto_postpone_period_in_days: board.auto_postpone_period_in_days
+      }
+    end
+
+    def board_description_hash(board)
+      {
+        public_description: board.public_description.to_plain_text,
+        public_description_html: board.public_description.to_s
       }
     end
 
