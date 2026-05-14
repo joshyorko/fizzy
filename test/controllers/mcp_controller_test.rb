@@ -117,7 +117,7 @@ class McpControllerTest < ActionDispatch::IntegrationTest
         headers: json_headers(@read_token)
     end
 
-    assert_response :forbidden
+    assert_insufficient_scope_tool_result
   end
 
   test "read token cannot create a board" do
@@ -127,7 +127,7 @@ class McpControllerTest < ActionDispatch::IntegrationTest
         headers: json_headers(@read_token)
     end
 
-    assert_response :forbidden
+    assert_insufficient_scope_tool_result
   end
 
   test "write tools advertise read and write scopes with golden ticket fields" do
@@ -142,12 +142,20 @@ class McpControllerTest < ActionDispatch::IntegrationTest
 
     assert_equal [ "read", "write" ], board_create.dig("securitySchemes", 0, "scopes")
     assert_equal false, board_create.dig("annotations", "readOnlyHint")
-    assert_equal [ "account_id", "name" ], board_create.dig("inputSchema", "required")
+    assert_equal false, board_create.dig("annotations", "openWorldHint")
+    assert_match(/\AUse this when/, board_create["description"])
+    assert_equal [ "account_id" ], board_create.dig("inputSchema", "required")
+    assert_equal [ [ "name" ], [ "title" ] ], board_create.dig("inputSchema", "anyOf").map { |schema| schema["required"] }
     assert_equal "array", board_create.dig("inputSchema", "properties", "columns", "type")
+    assert_equal "string", board_create.dig("inputSchema", "properties", "columns", "items", "anyOf", 0, "type")
+    assert_equal "object", board_create.dig("inputSchema", "properties", "columns", "items", "anyOf", 1, "type")
+    assert_includes board_create.dig("inputSchema", "properties", "columns", "description"), "plain column name strings"
+    assert_includes board_create.dig("inputSchema", "properties", "columns", "description"), "Do not include"
     assert_equal [ "read", "write" ], card_update.dig("securitySchemes", 0, "scopes")
     assert_equal [ "read", "write" ], card_update.dig("_meta", "securitySchemes", 0, "scopes")
     assert_equal false, card_update.dig("annotations", "readOnlyHint")
-    assert_equal false, card_update.dig("annotations", "destructiveHint")
+    assert_equal true, card_update.dig("annotations", "destructiveHint")
+    assert_equal false, card_update.dig("annotations", "openWorldHint")
     assert_includes card_update.dig("inputSchema", "properties", "description", "description"), "HTML"
     assert_equal "array", card_update.dig("inputSchema", "properties", "tag_titles", "type")
     assert_equal "array", card_update.dig("inputSchema", "properties", "steps", "type")
@@ -168,9 +176,13 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     account_list = tools.find { |tool| tool["name"] == "account_list" }
     board_create = tools.find { |tool| tool["name"] == "board_create" }
     fetch = tools.find { |tool| tool["name"] == "fetch" }
+    search = tools.find { |tool| tool["name"] == "search" }
 
+    assert_equal [ "query" ], search.dig("inputSchema", "properties").keys
+    assert_equal [ "id" ], fetch.dig("inputSchema", "properties").keys
     assert_equal "array", account_list.dig("outputSchema", "properties", "accounts", "type")
     assert_equal "array", board_create.dig("outputSchema", "properties", "columns", "type")
+    assert_equal "array", board_create.dig("outputSchema", "properties", "system_columns", "type")
     assert_equal "string", board_create.dig("outputSchema", "properties", "board", "properties", "public_description_html", "type")
     assert_equal "string", fetch.dig("outputSchema", "properties", "text", "type")
     assert_equal "object", fetch.dig("outputSchema", "properties", "metadata", "type")
@@ -194,6 +206,7 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     color = @response.parsed_body.dig("result", "structuredContent", "columns").first["color"]
     assert_kind_of String, color
+    assert_equal [ "Maybe?", "Not Now", "Done" ], @response.parsed_body.dig("result", "structuredContent", "system_columns")
   end
 
   test "write token can create a card" do
@@ -225,7 +238,7 @@ class McpControllerTest < ActionDispatch::IntegrationTest
               account_id: @account_id,
               title: "Agent Heartbeat",
               description: "<p>Tracks agent heartbeat work.</p>",
-              columns: [ "Inbox", "Done" ]
+              columns: [ "Inbox", "Review" ]
             ).to_json,
             headers: json_headers(@write_token)
         end
@@ -241,7 +254,8 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_equal users(:david), board.creator
     assert board.all_access?
     assert_includes payload.dig("board", "url"), board.id
-    assert_equal [ "Inbox", "Done" ], payload["columns"].map { |column| column["name"] }
+    assert_equal [ "Inbox", "Review" ], payload["columns"].map { |column| column["name"] }
+    assert_equal [ "Maybe?", "Not Now", "Done" ], payload["system_columns"]
 
     assert_difference -> { board.cards.count }, +1 do
       untenanted do
@@ -257,6 +271,61 @@ class McpControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_equal "Heartbeat card", board.cards.last.title
+  end
+
+  test "board create accepts common column object input and skips system columns" do
+    assert_difference -> { Board.count }, +1 do
+      assert_difference -> { Column.count }, +3 do
+        untenanted do
+          post mcp_path,
+            params: tool_call("board_create",
+              account_id: @account_id,
+              name: "ChatGPT Board",
+              columns: [
+                { name: "To Do" },
+                { title: "In Progress" },
+                "Review",
+                "Done",
+                "Not Now",
+                "Maybe"
+              ]
+            ).to_json,
+            headers: json_headers(@write_token)
+        end
+      end
+    end
+
+    assert_response :success
+    payload = @response.parsed_body.dig("result", "structuredContent")
+    board = Board.find(payload.dig("board", "id"))
+
+    assert_equal [ "To Do", "In Progress", "Review" ], board.columns.sorted.pluck(:name)
+    assert_equal [ "To Do", "In Progress", "Review" ], payload["columns"].map { |column| column["name"] }
+    assert_equal [ "Maybe?", "Not Now", "Done" ], payload["system_columns"]
+  end
+
+  test "board create keeps one requested workflow column separate from system columns" do
+    assert_difference -> { Board.count }, +1 do
+      assert_difference -> { Column.count }, +1 do
+        untenanted do
+          post mcp_path,
+            params: tool_call("board_create",
+              account_id: @account_id,
+              name: "Sauce Board",
+              columns: [ "Maybe?", "AwesomeSauce", "Not Now", "Done" ]
+            ).to_json,
+            headers: json_headers(@write_token)
+        end
+      end
+    end
+
+    assert_response :success
+    payload = @response.parsed_body.dig("result", "structuredContent")
+    board = Board.find(payload.dig("board", "id"))
+
+    assert_equal [ "AwesomeSauce" ], board.columns.sorted.pluck(:name)
+    assert_equal [ "AwesomeSauce" ], payload["columns"].map { |column| column["name"] }
+    assert_equal [ "Maybe?", "Not Now", "Done" ], payload["system_columns"]
   end
 
   test "write token can create a golden ticket card with html tags and steps" do
@@ -402,6 +471,22 @@ class McpControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert card.reload.closed?
+    payload = @response.parsed_body.dig("result", "structuredContent")
+    assert_equal "Done", payload.dig("card", "status")
+    assert_equal "Done", payload.dig("metadata", "status")
+    assert_nil payload.dig("card", "column")
+
+    untenanted do
+      post mcp_path,
+        params: tool_call("move_card", account_id: @account_id, card_id: card.id, target: "maybe").to_json,
+        headers: json_headers(@write_token)
+    end
+
+    assert_response :success
+    assert card.reload.awaiting_triage?
+    payload = @response.parsed_body.dig("result", "structuredContent")
+    assert_equal "Maybe?", payload.dig("card", "status")
+    assert_nil payload.dig("card", "column")
   end
 
   test "write token can move a card with destination alias" do
@@ -417,6 +502,68 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_equal columns(:writebook_in_progress), card.reload.column
   end
 
+  test "write token can move a card to not now" do
+    card = cards(:text)
+
+    assert_difference -> { card.reload.events.where(action: "card_postponed").count }, +1 do
+      untenanted do
+        post mcp_path,
+          params: tool_call("move_card", account_id: @account_id, card_id: card.id, target: "not_now").to_json,
+          headers: json_headers(@write_token)
+      end
+    end
+
+    assert_response :success
+    assert card.reload.postponed?
+    payload = @response.parsed_body.dig("result", "structuredContent")
+    assert_equal "Not Now", payload.dig("card", "status")
+    assert_nil payload.dig("card", "column")
+  end
+
+  test "card update column id uses board transitions" do
+    card = cards(:buy_domain)
+
+    assert_difference -> { card.reload.events.where(action: "card_triaged").count }, +1 do
+      untenanted do
+        post mcp_path,
+          params: tool_call("card_update", account_id: @account_id, card_id: card.id, column_id: columns(:writebook_review).id).to_json,
+          headers: json_headers(@write_token)
+      end
+    end
+
+    assert_response :success
+    assert_equal columns(:writebook_review), card.reload.column
+
+    assert_difference -> { card.reload.events.where(action: "card_sent_back_to_triage").count }, +1 do
+      untenanted do
+        post mcp_path,
+          params: tool_call("card_update", account_id: @account_id, card_id: card.id, column_id: nil).to_json,
+          headers: json_headers(@write_token)
+      end
+    end
+
+    assert_response :success
+    assert card.reload.awaiting_triage?
+    assert_equal "Maybe?", @response.parsed_body.dig("result", "structuredContent", "card", "status")
+  end
+
+  test "numeric card ids require account id" do
+    second_user = accounts(:initech).users.create!(name: "David", identity: identities(:david), role: "member", verified_at: Time.current)
+    Access.find_or_create_by!(account: accounts(:initech), user: second_user, board: boards(:miltons_wish_list))
+
+    untenanted do
+      post mcp_path,
+        params: tool_call("card_update", card_id: "1", title: "Wrong card").to_json,
+        headers: json_headers(@write_token)
+    end
+
+    assert_response :success
+    assert_equal -32602, @response.parsed_body.dig("error", "code")
+    assert_equal "account_id is required when card_id is a card number", @response.parsed_body.dig("error", "message")
+    assert_equal "The logo isn't big enough", cards(:logo).reload.title
+    assert_equal "I want to play my radio at a reasonable volume", cards(:radio).reload.title
+  end
+
   test "read token cannot move a card" do
     untenanted do
       post mcp_path,
@@ -424,7 +571,7 @@ class McpControllerTest < ActionDispatch::IntegrationTest
         headers: json_headers(@read_token)
     end
 
-    assert_response :forbidden
+    assert_insufficient_scope_tool_result
   end
 
   test "resources list and read account board and card resources" do
@@ -441,6 +588,44 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_resource_read "fizzy://accounts/#{accounts(:'37s').id}/overview", "account"
     assert_resource_read "fizzy://accounts/#{accounts(:'37s').id}/boards/#{boards(:writebook).id}", "board"
     assert_resource_read "fizzy://accounts/#{accounts(:'37s').id}/cards/#{cards(:logo).id}", "card"
+  end
+
+  test "resources use system columns and visible card statuses" do
+    cards(:logo).close(user: users(:david))
+    cards(:text).postpone(user: users(:david))
+
+    board_payload = assert_resource_read "fizzy://accounts/#{accounts(:'37s').id}/boards/#{boards(:writebook).id}", "board"
+    assert_equal [ "Maybe?", "Not Now", "Done" ], board_payload["system_columns"]
+
+    closed_payload = assert_resource_read "fizzy://accounts/#{accounts(:'37s').id}/cards/#{cards(:logo).id}", "card"
+    assert_equal "Done", closed_payload.dig("card", "status")
+    assert_nil closed_payload.dig("card", "column_id")
+
+    postponed_payload = assert_resource_read "fizzy://accounts/#{accounts(:'37s').id}/cards/#{cards(:text).id}", "card"
+    assert_equal "Not Now", postponed_payload.dig("card", "status")
+    assert_nil postponed_payload.dig("card", "column_id")
+
+    maybe_payload = assert_resource_read "fizzy://accounts/#{accounts(:'37s').id}/cards/#{cards(:buy_domain).id}", "card"
+    assert_equal "Maybe?", maybe_payload.dig("card", "status")
+    assert_nil maybe_payload.dig("card", "column_id")
+  end
+
+  test "malformed json rpc requests return invalid request errors" do
+    untenanted do
+      post mcp_path, params: "[]", headers: json_headers(@write_token)
+    end
+
+    assert_response :success
+    assert_equal -32600, @response.parsed_body.first.dig("error", "code")
+
+    untenanted do
+      post mcp_path,
+        params: json_rpc("tools/call", params: { name: "account_list", arguments: [] }).to_json,
+        headers: json_headers(@write_token)
+    end
+
+    assert_response :success
+    assert_equal -32602, @response.parsed_body.dig("error", "code")
   end
 
   test "search and fetch return company knowledge compatible payloads" do
@@ -495,6 +680,15 @@ class McpControllerTest < ActionDispatch::IntegrationTest
       content = @response.parsed_body.dig("result", "contents").first
       assert_equal uri, content["uri"]
       assert_equal "application/json", content["mimeType"]
-      assert JSON.parse(content["text"])[expected_key].present?
+      JSON.parse(content["text"]).tap { |payload| assert payload[expected_key].present? }
+    end
+
+    def assert_insufficient_scope_tool_result
+      assert_response :success
+      result = @response.parsed_body["result"]
+      assert_equal true, result["isError"]
+      assert_equal "Insufficient scope", result.dig("content", 0, "text")
+      assert_match "insufficient_scope", result.dig("_meta", "mcp/www_authenticate")
+      assert_match "resource_metadata=", result.dig("_meta", "mcp/www_authenticate")
     end
 end

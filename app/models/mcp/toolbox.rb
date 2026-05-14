@@ -19,48 +19,45 @@ class Mcp::Toolbox
   class << self
     def tool_definitions
       [
-        read_tool("search", "Search cards", "Search accessible Fizzy cards.", {
-          query: string_schema("Search terms"),
-          account_id: string_schema("Account id or account slug"),
-          limit: integer_schema("Maximum results")
+        read_tool("search", "Search cards", "Use this when the user wants to find Fizzy cards by text.", {
+          query: string_schema("Search terms")
         }, required: [ "query" ]),
-        read_tool("fetch", "Fetch card", "Fetch one accessible Fizzy card for search result hydration.", {
-          id: string_schema("Card id returned by search"),
-          account_id: string_schema("Account id or account slug")
+        read_tool("fetch", "Fetch card", "Use this when the user wants the full details for one Fizzy card found by search.", {
+          id: string_schema("Card id returned by search")
         }, required: [ "id" ]),
-        read_tool("identity_show", "Show identity", "Show the linked Fizzy identity.", {}),
-        read_tool("account_list", "List accounts", "List active Fizzy accounts available to the identity.", {}),
-        read_tool("board_list", "List boards", "List accessible boards in an account.", {
+        read_tool("identity_show", "Show identity", "Use this when the user asks which Fizzy identity is connected.", {}),
+        read_tool("account_list", "List accounts", "Use this when the user needs to choose or confirm a Fizzy account.", {}),
+        read_tool("board_list", "List boards", "Use this when the user wants to see accessible Fizzy boards in an account.", {
           account_id: string_schema("Account id or account slug"),
           limit: integer_schema("Maximum results")
         }, required: [ "account_id" ]),
-        read_tool("board_show", "Show board", "Show one accessible board.", {
+        read_tool("board_show", "Show board", "Use this when the user wants details and active workflow columns for one Fizzy board.", {
           account_id: string_schema("Account id or account slug"),
           board_id: string_schema("Board id")
         }, required: [ "account_id", "board_id" ]),
-        read_tool("column_list", "List columns", "List columns on an accessible board.", {
+        read_tool("column_list", "List columns", "Use this when the user wants the active workflow columns on a Fizzy board. System columns such as Maybe?, Not Now, and Done are not user-created workflow columns.", {
           account_id: string_schema("Account id or account slug"),
           board_id: string_schema("Board id")
         }, required: [ "account_id", "board_id" ]),
-        write_tool("board_create", "Create board", "Create a board in an account, optionally with initial columns.", {
+        write_tool("board_create", "Create board", "Use this when the user wants a new account-wide Fizzy board. Create only active workflow columns; Fizzy automatically includes Maybe?, Not Now, and Done as system columns.", {
           account_id: string_schema("Account id or account slug"),
           name: string_schema("Board name"),
           title: string_schema("Alias for name, accepted for compatibility"),
           description: rich_text_schema("Board public description"),
-          columns: array_schema("Initial column names to create on the board."),
-          initial_columns: array_schema("Alias for columns, accepted for compatibility.")
-        }, required: [ "account_id", "name" ]),
-        read_tool("card_list", "List cards", "List accessible cards in an account, board, or column.", {
+          columns: column_names_schema("Initial active workflow columns to create. Send an array of plain column name strings like [\"To Do\", \"In Progress\", \"Review\"]. Do not include Maybe?, Not Now, or Done; Fizzy automatically includes those system columns."),
+          initial_columns: column_names_schema("Alias for columns, accepted for compatibility. Send plain column name strings. Do not include Maybe?, Not Now, or Done.")
+        }, required: [ "account_id" ], any_of_required: [ [ "name" ], [ "title" ] ]),
+        read_tool("card_list", "List cards", "Use this when the user wants accessible cards in an account, board, or active workflow column.", {
           account_id: string_schema("Account id or account slug"),
           board_id: string_schema("Board id"),
           column_id: string_schema("Column id"),
           limit: integer_schema("Maximum results")
         }, required: [ "account_id" ]),
-        read_tool("card_show", "Show card", "Show one accessible card.", {
+        read_tool("card_show", "Show card", "Use this when the user wants details for one Fizzy card.", {
           account_id: string_schema("Account id or account slug"),
           card_id: string_schema("Card id or card number")
         }, required: [ "card_id" ]),
-        write_tool("card_create", "Create card", "Create a published card on an accessible board.", {
+        write_tool("card_create", "Create card", "Use this when the user wants a new published card on a Fizzy board.", {
           account_id: string_schema("Account id or account slug"),
           board_id: string_schema("Board id"),
           column_id: string_schema("Column id"),
@@ -70,7 +67,7 @@ class Mcp::Toolbox
           steps: array_schema("Checklist step contents to create on the card. Existing matching steps are not duplicated."),
           golden: boolean_schema("Whether to mark the card with Fizzy's native golden marker.")
         }, required: [ "account_id", "board_id", "title" ]),
-        write_tool("card_update", "Update card", "Update title, description, or column for an accessible card.", {
+        write_tool("card_update", "Update card", "Use this when the user wants to edit a Fizzy card's title, description, active workflow column, tags, checklist steps, or golden marker.", {
           account_id: string_schema("Account id or account slug"),
           card_id: string_schema("Card id or card number"),
           title: string_schema("Card title"),
@@ -79,20 +76,20 @@ class Mcp::Toolbox
           tag_titles: array_schema("Tag titles to apply, with or without leading #. Use #agent-instructions, #move-to-done, #close-on-complete, or #move-to-<column> for agent workflow cards."),
           steps: array_schema("Checklist step contents to create on the card. Existing matching steps are not duplicated."),
           golden: boolean_schema("Whether to mark the card with Fizzy's native golden marker.")
-        }, required: [ "card_id" ]),
-        write_tool("move_card", "Move card", "Move a card to done, backlog, next, an exact column name, or a column id.", {
+        }, required: [ "card_id" ], destructive: true),
+        write_tool("move_card", "Move card", "Use this when the user wants to move a Fizzy card. Use target \"done\", \"not_now\", or \"maybe\" for Fizzy system columns; use column_id or an active workflow column name for ordinary board columns.", {
           account_id: string_schema("Account id or account slug"),
           card_id: string_schema("Card id or card number"),
-          target: string_schema("Move target: done, backlog, next, or exact column name"),
+          target: string_schema("Move target: done, not_now, maybe, backlog, next, or exact active workflow column name"),
           destination: string_schema("Alias for target, accepted for compatibility"),
           column_id: string_schema("Column id. When present, this takes precedence over target.")
         }, required: [ "card_id" ]),
-        read_tool("comment_list", "List comments", "List comments on an accessible card.", {
+        read_tool("comment_list", "List comments", "Use this when the user wants comments on a Fizzy card.", {
           account_id: string_schema("Account id or account slug"),
           card_id: string_schema("Card id or card number"),
           limit: integer_schema("Maximum results")
         }, required: [ "card_id" ]),
-        write_tool("comment_create", "Create comment", "Create a comment on an accessible card.", {
+        write_tool("comment_create", "Create comment", "Use this when the user wants to add a comment to a Fizzy card.", {
           account_id: string_schema("Account id or account slug"),
           card_id: string_schema("Card id or card number"),
           body: rich_text_schema("Comment body")
@@ -105,24 +102,26 @@ class Mcp::Toolbox
         tool(name, title, description, properties, required: required, scopes: [ "read" ], read_only: true)
       end
 
-      def write_tool(name, title, description, properties, required: [])
-        tool(name, title, description, properties, required: required, scopes: [ "read", "write" ], read_only: false)
+      def write_tool(name, title, description, properties, required: [], any_of_required: nil, destructive: false)
+        tool(name, title, description, properties, required: required, any_of_required: any_of_required, scopes: [ "read", "write" ], read_only: false, destructive: destructive)
       end
 
-      def tool(name, title, description, properties, required:, scopes:, read_only:)
+      def tool(name, title, description, properties, required:, any_of_required: nil, scopes:, read_only:, destructive: false)
         security_schemes = [ { type: "oauth2", scopes: scopes } ]
+        input_schema = {
+          type: "object",
+          properties: properties,
+          required: required
+        }
+        input_schema[:anyOf] = any_of_required.map { |keys| { required: keys } } if any_of_required.present?
 
         {
           name: name,
           title: title,
           description: description,
-          inputSchema: {
-            type: "object",
-            properties: properties,
-            required: required
-          },
+          inputSchema: input_schema,
           outputSchema: output_schema_for(name),
-          annotations: { readOnlyHint: read_only, destructiveHint: false },
+          annotations: { readOnlyHint: read_only, destructiveHint: destructive, openWorldHint: false },
           securitySchemes: security_schemes,
           _meta: { securitySchemes: security_schemes }
         }
@@ -138,6 +137,22 @@ class Mcp::Toolbox
 
       def array_schema(description)
         { type: "array", description: description, items: { type: "string" } }
+      end
+
+      def column_names_schema(description)
+        {
+          type: "array",
+          description: description,
+          items: {
+            anyOf: [
+              { type: "string", description: "Active workflow column name" },
+              object_schema({
+                name: string_schema("Active workflow column name"),
+                title: string_schema("Alias for name, accepted for compatibility")
+              }, required: [], any_of_required: [ [ "name" ], [ "title" ] ])
+            ]
+          }
+        }
       end
 
       def boolean_schema(description)
@@ -173,14 +188,19 @@ class Mcp::Toolbox
         when "board_show"
           object_schema({
             board: board_schema,
-            columns: array_of_schema(column_schema)
+            columns: array_of_schema(column_schema),
+            system_columns: system_columns_schema
           })
         when "column_list"
-          object_schema(columns: array_of_schema(column_schema))
+          object_schema({
+            columns: array_of_schema(column_schema),
+            system_columns: system_columns_schema
+          })
         when "board_create"
           object_schema({
             board: board_schema.merge(properties: board_schema[:properties].merge(board_description_schema[:properties])),
-            columns: array_of_schema(column_schema)
+            columns: array_of_schema(column_schema),
+            system_columns: system_columns_schema
           })
         when "card_list"
           object_schema(cards: array_of_schema(card_schema))
@@ -204,14 +224,16 @@ class Mcp::Toolbox
         end
       end
 
-      def object_schema(properties = nil, required: nil, **keyword_properties)
+      def object_schema(properties = nil, required: nil, any_of_required: nil, **keyword_properties)
         properties ||= keyword_properties
 
-        {
+        schema = {
           type: "object",
           properties: properties,
           required: required || properties.keys.map(&:to_s)
         }
+        schema[:anyOf] = any_of_required.map { |keys| { required: keys } } if any_of_required.present?
+        schema
       end
 
       def array_of_schema(item_schema)
@@ -220,6 +242,10 @@ class Mcp::Toolbox
 
       def nullable_schema(schema)
         { anyOf: [ schema, { type: "null" } ] }
+      end
+
+      def system_columns_schema
+        array_of_schema(string_schema("Fizzy system column name shown automatically by the board UI"))
       end
 
       def account_schema
@@ -268,7 +294,7 @@ class Mcp::Toolbox
           id: string_schema("Card id"),
           number: { type: "integer", description: "Card number" },
           title: string_schema("Card title"),
-          status: string_schema("Card status"),
+          status: string_schema("User-visible card column or status"),
           description: string_schema("Plain-text card description"),
           description_html: string_schema("HTML card description"),
           url: string_schema("Card URL"),
@@ -298,7 +324,7 @@ class Mcp::Toolbox
           board_id: string_schema("Board id"),
           board_name: string_schema("Board name"),
           card_number: { type: "integer", description: "Card number" },
-          status: string_schema("Card status"),
+          status: string_schema("User-visible card column or status"),
           tags: array_of_schema(string_schema("Tag title with leading #")),
           golden: boolean_schema("Whether the card is marked golden")
         })
@@ -343,8 +369,9 @@ class Mcp::Toolbox
   def call(name, arguments)
     raise Error.new("Unknown tool", code: -32602) unless tool_name?(name)
     raise Forbidden if write_tool?(name) && !@access_token.write?
+    raise Error.new("Invalid arguments", code: -32602) unless arguments.is_a?(Hash)
 
-    result public_send(name, arguments.to_h)
+    result public_send(name, arguments)
   end
 
   def search(arguments)
@@ -402,7 +429,8 @@ class Mcp::Toolbox
 
       {
         board: board_hash(board),
-        columns: board.columns.sorted.map { |column| column_hash(column) }
+        columns: board.columns.sorted.map { |column| column_hash(column) },
+        system_columns: Board.system_column_names
       }
     end
   end
@@ -412,7 +440,8 @@ class Mcp::Toolbox
       board = user.boards.find(required_argument(arguments, "board_id"))
 
       {
-        columns: board.columns.sorted.map { |column| column_hash(column) }
+        columns: board.columns.sorted.map { |column| column_hash(column) },
+        system_columns: Board.system_column_names
       }
     end
   end
@@ -436,7 +465,8 @@ class Mcp::Toolbox
 
       {
         board: board_hash(board.reload).merge(board_description_hash(board)),
-        columns: board.columns.sorted.map { |column| column_hash(column) }
+        columns: board.columns.sorted.map { |column| column_hash(column) },
+        system_columns: Board.system_column_names
       }
     end
   end
@@ -492,12 +522,9 @@ class Mcp::Toolbox
     with_found_card(arguments) do |account, _user, card|
       attributes = arguments.slice("title", "description")
 
-      if arguments.key?("column_id")
-        attributes[:column] = arguments["column_id"].present? ? card.board.columns.find(arguments["column_id"]) : nil
-      end
-
       Card.transaction do
         card.update!(attributes) if attributes.present?
+        move_card_to_column_argument(card, arguments["column_id"]) if arguments.key?("column_id")
         apply_card_workflow(card, arguments)
       end
 
@@ -512,15 +539,11 @@ class Mcp::Toolbox
     with_found_card(arguments) do |account, user, card|
       target = move_target(arguments)
 
-      if target.downcase == "done" && arguments["column_id"].blank?
-        card.close(user: user)
+      if arguments["column_id"].blank? && (system_column_name = Board.system_column_name_for(target))
+        move_card_to_system_column(card, system_column_name, user)
       else
         column = move_target_column(card, arguments)
-
-        Card.transaction do
-          card.resume
-          card.update!(column: column)
-        end
+        card.triage_into(column)
       end
 
       {
@@ -584,14 +607,18 @@ class Mcp::Toolbox
     end
 
     def with_found_card(arguments)
+      identifier = required_argument(arguments, "card_id")
+
       if account_identifier(arguments).present?
         with_account(account_identifier(arguments)) do |account, user|
-          yield account, user, find_card_for_user(user, required_argument(arguments, "card_id"))
+          yield account, user, find_card_for_user(user, identifier)
         end
       else
+        raise Error.new("account_id is required when card_id is a card number", code: -32602) if card_number_identifier?(identifier)
+
         each_account.each do |account, user|
           result = with_current(account, user) do
-            if card = find_card_for_user(user, required_argument(arguments, "card_id"), raise_on_missing: false)
+            if card = find_card_for_user(user, identifier, raise_on_missing: false)
               yield account, user, card
             end
           end
@@ -608,6 +635,10 @@ class Mcp::Toolbox
       card = relation.find_by(id: identifier) || relation.find_by(number: identifier)
       raise Error.new("Card not found", code: -32004) if raise_on_missing && card.blank?
       card
+    end
+
+    def card_number_identifier?(identifier)
+      identifier.to_s.match?(/\A\d+\z/)
     end
 
     def with_account(identifier)
@@ -662,7 +693,37 @@ class Mcp::Toolbox
     end
 
     def initial_column_names(arguments)
-      array_argument(arguments["columns"].presence || arguments["initial_columns"]).map(&:to_s).map(&:strip).reject(&:blank?)
+      array_argument(arguments["columns"].presence || arguments["initial_columns"]).filter_map do |value|
+        column_name_argument(value)
+      end.reject { |name| Board.system_column_name?(name) }
+    end
+
+    def column_name_argument(value)
+      case value
+      when Hash
+        value["name"].presence || value["title"].presence
+      else
+        value
+      end.to_s.strip.presence
+    end
+
+    def move_card_to_column_argument(card, column_id)
+      if column_id.present?
+        card.triage_into(card.board.columns.find(column_id))
+      else
+        card.send_back_to_triage
+      end
+    end
+
+    def move_card_to_system_column(card, system_column_name, user)
+      case system_column_name
+      when "Done"
+        card.close(user: user)
+      when "Not Now"
+        card.postpone(user: user)
+      when "Maybe?"
+        card.send_back_to_triage
+      end
     end
 
     def move_target_column(card, arguments)
@@ -774,12 +835,12 @@ class Mcp::Toolbox
         id: card.id,
         number: card.number,
         title: card.title,
-        status: card.status,
+        status: card_status(card),
         description: card.description.to_plain_text,
         description_html: card.description.to_s,
         url: card_url(account, card),
         board: board_hash(card.board),
-        column: card.column && column_hash(card.column),
+        column: card.active_workflow_column && column_hash(card.active_workflow_column),
         tags: card.tags.alphabetically.map(&:hashtag),
         golden: card.golden?,
         steps: step_hashes(card),
@@ -796,10 +857,14 @@ class Mcp::Toolbox
         board_id: card.board_id,
         board_name: card.board.name,
         card_number: card.number,
-        status: card.status,
+        status: card_status(card),
         tags: card.tags.alphabetically.map(&:hashtag),
         golden: card.golden?
       }
+    end
+
+    def card_status(card)
+      card.board_column_name
     end
 
     def comment_hash(account, comment)

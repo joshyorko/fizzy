@@ -87,6 +87,7 @@ class Mcp::Resources
       {
         board: board_hash(board),
         columns: board.columns.sorted.map { |column| column_hash(column) },
+        system_columns: Board.system_column_names,
         recent_cards: board.cards.published.latest.limit(25).map { |card| card_summary_hash(board.account, card) }
       }
     end
@@ -136,8 +137,8 @@ class Mcp::Resources
         uri: "fizzy://accounts/#{account.id}/cards/#{card.id}",
         url: @url_context.card_url(card, script_name: account.slug),
         board_id: card.board_id,
-        column_id: card.column_id,
-        status: card.closed? ? "closed" : card.status
+        column_id: card.active_workflow_column&.id,
+        status: card.board_column_name
       }
     end
 

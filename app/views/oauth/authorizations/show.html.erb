@@ -12,6 +12,12 @@
   <div class="fill-shade border-radius pad txt-small">
     <strong>Access requested:</strong>
     <%= @scope.split.join(", ") %>
+    <br>
+    <strong>Client id:</strong>
+    <%= @client.client_id %>
+    <br>
+    <strong>Redirects to:</strong>
+    <%= @redirect_uri %>
   </div>
 
   <%= form_with url: oauth_authorize_path, method: :post, class: "flex flex-column gap-half", data: { turbo: false } do |form| %>

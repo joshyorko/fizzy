@@ -31,15 +31,13 @@ class McpController < ApplicationController
 
     if unsupported_protocol_header?
       render status: :bad_request, json: json_rpc_error(json_rpc_id(message), -32602, "Unsupported protocol version")
-    elsif response = Mcp::Server.new(access_token: @access_token, url_context: self).handle(message)
-      render json: response
+    elsif mcp_response = mcp_server.handle(message)
+      render json: mcp_response
     else
       head :accepted
     end
   rescue JSON::ParserError
     render status: :bad_request, json: json_rpc_error(nil, -32700, "Parse error")
-  rescue Mcp::Server::Forbidden => error
-    render status: :forbidden, json: error.response
   end
 
   def destroy
@@ -47,13 +45,35 @@ class McpController < ApplicationController
   end
 
   private
+    def mcp_server
+      Mcp::Server.new(
+        access_token: @access_token,
+        url_context: self,
+        auth_challenge: bearer_challenge(
+          error: "insufficient_scope",
+          error_description: "Read and write scope required",
+          scope: "read write"
+        )
+      )
+    end
+
     def authenticate_access_token
       if bearer_token.present? && (@access_token = Identity::AccessToken.find_by(token: bearer_token))
         Current.identity = @access_token.identity
       else
-        response.headers["WWW-Authenticate"] = %(Bearer realm="Fizzy MCP", resource_metadata="#{oauth_protected_resource_url(script_name: nil)}")
+        response.headers["WWW-Authenticate"] = bearer_challenge(error: "invalid_token", error_description: "Missing or invalid bearer token")
         render status: :unauthorized, json: { error: "unauthorized" }
       end
+    end
+
+    def bearer_challenge(error: nil, error_description: nil, scope: nil)
+      [
+        %(Bearer realm="Fizzy MCP"),
+        %(resource_metadata="#{oauth_protected_resource_url(script_name: nil)}"),
+        (%(error="#{error}") if error.present?),
+        (%(error_description="#{error_description}") if error_description.present?),
+        (%(scope="#{scope}") if scope.present?)
+      ].compact.join(", ")
     end
 
     def bearer_token
