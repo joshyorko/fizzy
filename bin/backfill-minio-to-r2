@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+FIZZY_ENV_FILE="${FIZZY_ENV_FILE:-${ROOT_DIR}/.env.kamal.local}"
+MINIO_ENV_FILE="${MINIO_ENV_FILE:-${ROOT_DIR}/../minio-kamal/.env.kamal.local}"
+MINIO_ENDPOINT="${MINIO_ENDPOINT:-http://10.10.40.56:9000}"
+SOURCE_BUCKET="${SOURCE_BUCKET:-}"
+DEST_BUCKET="${DEST_BUCKET:-}"
+MC_IMAGE="${MC_IMAGE:-minio/mc:latest}"
+
+load_env_file() {
+  local file="$1"
+
+  if [[ ! -f "${file}" ]]; then
+    echo "Missing env file: ${file}" >&2
+    exit 1
+  fi
+
+  set -a
+  # shellcheck disable=SC1090
+  source "${file}"
+  set +a
+}
+
+load_env_file "${FIZZY_ENV_FILE}"
+load_env_file "${MINIO_ENV_FILE}"
+
+SOURCE_BUCKET="${SOURCE_BUCKET:-${MINIO_SOURCE_BUCKET:-fizzy-production}}"
+DEST_BUCKET="${DEST_BUCKET:-${S3_BUCKET:-}}"
+
+required_vars=(
+  MINIO_ROOT_USER
+  MINIO_ROOT_PASSWORD
+  S3_ACCESS_KEY_ID
+  S3_SECRET_ACCESS_KEY
+  S3_ENDPOINT
+  DEST_BUCKET
+  SOURCE_BUCKET
+)
+
+for var_name in "${required_vars[@]}"; do
+  if [[ -z "${!var_name:-}" ]]; then
+    echo "Missing required variable: ${var_name}" >&2
+    exit 1
+  fi
+done
+
+source_host="${MINIO_ENDPOINT#http://}"
+source_host="${source_host#https://}"
+dest_host="${S3_ENDPOINT#http://}"
+dest_host="${dest_host#https://}"
+
+echo "Backfilling ${SOURCE_BUCKET} from MinIO into ${DEST_BUCKET} on R2"
+echo "Source endpoint: ${MINIO_ENDPOINT}"
+echo "Destination endpoint: ${S3_ENDPOINT}"
+
+exec docker run --rm \
+  -e MC_HOST_source="http://${MINIO_ROOT_USER}:${MINIO_ROOT_PASSWORD}@${source_host}" \
+  -e MC_HOST_dest="https://${S3_ACCESS_KEY_ID}:${S3_SECRET_ACCESS_KEY}@${dest_host}" \
+  "${MC_IMAGE}" \
+  mirror --overwrite --retry "source/${SOURCE_BUCKET}" "dest/${DEST_BUCKET}"

@@ -2,8 +2,8 @@ require "test_helper"
 
 class ApiTest < ActionDispatch::IntegrationTest
   setup do
-    @davids_bearer_token = bearer_token_env(identity_access_tokens(:davids_api_token).token)
-    @jasons_bearer_token = bearer_token_env(identity_access_tokens(:jasons_api_token).token)
+    @davids_bearer_token = bearer_token_env(fixture_access_token(:davids_api_token))
+    @jasons_bearer_token = bearer_token_env(fixture_access_token(:jasons_api_token))
   end
 
   test "authenticate with user credentials" do
