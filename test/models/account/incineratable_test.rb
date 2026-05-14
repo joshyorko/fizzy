@@ -114,10 +114,10 @@ class Account::IncineratableTest < ActiveSupport::TestCase
     assert ActionText::RichText.where(account_id: account_id).exists?
 
     # Flush jobs enqueued during setup (Turbo broadcasts, etc.) while records still exist
-    perform_enqueued_jobs
+    perform_enqueued_jobs except: Webhook::DeliveryJob
 
     account.incinerate
-    perform_enqueued_jobs
+    perform_enqueued_jobs except: Webhook::DeliveryJob
 
     # Confirm account is gone
     assert_not Account.exists?(account_id)
