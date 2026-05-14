@@ -69,7 +69,8 @@ class McpController < ApplicationController
     end
 
     def unsupported_protocol_header?
-      request.headers["MCP-Protocol-Version"].present? && request.headers["MCP-Protocol-Version"] != Mcp::Server::PROTOCOL_VERSION
+      request.headers["MCP-Protocol-Version"].present? &&
+        !Mcp::Server.supports_protocol_version?(request.headers["MCP-Protocol-Version"])
     end
 
     def json_rpc_id(message)

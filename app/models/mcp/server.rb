@@ -1,5 +1,6 @@
 class Mcp::Server
-  PROTOCOL_VERSION = "2025-06-18"
+  PROTOCOL_VERSION = "2025-11-25"
+  SUPPORTED_PROTOCOL_VERSIONS = [ PROTOCOL_VERSION, "2025-06-18" ].freeze
 
   class Forbidden < StandardError
     attr_reader :response
@@ -12,6 +13,10 @@ class Mcp::Server
   def initialize(access_token:, url_context:)
     @access_token = access_token
     @url_context = url_context
+  end
+
+  def self.supports_protocol_version?(protocol_version)
+    protocol_version.blank? || protocol_version.in?(SUPPORTED_PROTOCOL_VERSIONS)
   end
 
   def handle(message)
@@ -39,8 +44,10 @@ class Mcp::Server
     def dispatch(message)
       case message["method"]
       when "initialize"
-        if supported_protocol_version?(message.dig("params", "protocolVersion"))
-          response(message["id"], initialize_result)
+        protocol_version = message.dig("params", "protocolVersion")
+
+        if self.class.supports_protocol_version?(protocol_version)
+          response(message["id"], initialize_result(protocol_version))
         else
           error(message["id"], -32602, "Unsupported protocol version")
         end
@@ -63,9 +70,9 @@ class Mcp::Server
       error(message["id"], exception.code, exception.message)
     end
 
-    def initialize_result
+    def initialize_result(protocol_version)
       {
-        protocolVersion: PROTOCOL_VERSION,
+        protocolVersion: negotiated_protocol_version(protocol_version),
         capabilities: {
           tools: { listChanged: false },
           resources: { listChanged: false }
@@ -74,8 +81,8 @@ class Mcp::Server
       }
     end
 
-    def supported_protocol_version?(protocol_version)
-      protocol_version.blank? || protocol_version == PROTOCOL_VERSION
+    def negotiated_protocol_version(protocol_version)
+      protocol_version.presence || PROTOCOL_VERSION
     end
 
     def toolbox

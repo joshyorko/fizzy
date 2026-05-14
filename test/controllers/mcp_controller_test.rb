@@ -25,7 +25,7 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     discovery = @response.parsed_body
     assert_equal "Fizzy", discovery["title"]
-    assert_equal "2025-06-18", discovery["protocolVersion"]
+    assert_equal "2025-11-25", discovery["protocolVersion"]
     assert discovery.dig("capabilities", "tools").present?
     assert discovery.dig("capabilities", "resources").present?
     assert_equal oauth_authorization_server_url(script_name: nil), discovery["authorization_server"]
@@ -55,6 +55,38 @@ class McpControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_kind_of Array, @response.parsed_body.dig("result", "structuredContent", "accounts")
+  end
+
+  test "chatgpt current protocol can initialize and list tools" do
+    untenanted do
+      post mcp_path,
+        params: json_rpc("initialize", params: {
+          protocolVersion: "2025-11-25",
+          capabilities: {
+            experimental: {
+              "openai/visibility" => { enabled: true }
+            },
+            extensions: {
+              "io.modelcontextprotocol/ui" => {
+                mimeTypes: [ "text/html;profile=mcp-app" ]
+              }
+            }
+          },
+          clientInfo: { name: "openai-mcp (ChatGPT)", version: "1.0.0" }
+        }).to_json,
+        headers: json_headers(@read_token)
+    end
+
+    assert_response :success
+    assert_equal "2025-11-25", @response.parsed_body.dig("result", "protocolVersion")
+
+    untenanted do
+      post mcp_path, params: json_rpc("tools/list").to_json,
+        headers: json_headers(@read_token).merge("MCP-Protocol-Version" => "2025-11-25")
+    end
+
+    assert_response :success
+    assert @response.parsed_body.dig("result", "tools").any? { |tool| tool["name"] == "account_list" }
   end
 
   test "unsupported initialize protocol version is rejected" do
