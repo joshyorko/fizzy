@@ -14,7 +14,9 @@ class Mcp::Toolbox
     end
   end
 
-  WRITE_TOOLS = %w[ board_create card_create card_update move_card comment_create ].freeze
+  WRITE_TOOLS = %w[ board_create column_update card_create card_update move_card comment_create ].freeze
+  COLUMN_COLOR_OPTIONS = Color::COLORS.map { |color| "#{color.name} (#{color.value})" }.join(", ")
+  COLUMN_COLOR_ARGUMENTS = Color::COLORS.flat_map { |color| [ color.name, color.value ] }.freeze
 
   class << self
     def tool_definitions
@@ -39,13 +41,20 @@ class Mcp::Toolbox
           account_id: string_schema("Account id or account slug"),
           board_id: string_schema("Board id")
         }, required: [ "account_id", "board_id" ]),
+        write_tool("column_update", "Update column", "Use this when the user wants to rename an active Fizzy workflow column or change its color. Use column_list first if you know the column name but not the id. System columns such as Maybe?, Not Now, and Done do not have editable colors.", {
+          account_id: string_schema("Account id or account slug"),
+          board_id: string_schema("Board id"),
+          column_id: string_schema("Column id"),
+          name: string_schema("Column name"),
+          color: column_color_schema
+        }, required: [ "account_id", "board_id", "column_id" ], any_of_required: [ [ "name" ], [ "color" ] ]),
         write_tool("board_create", "Create board", "Use this when the user wants a new account-wide Fizzy board. Create only active workflow columns; Fizzy automatically includes Maybe?, Not Now, and Done as system columns.", {
           account_id: string_schema("Account id or account slug"),
           name: string_schema("Board name"),
           title: string_schema("Alias for name, accepted for compatibility"),
           description: rich_text_schema("Board public description"),
-          columns: column_names_schema("Initial active workflow columns to create. Send an array of plain column name strings like [\"To Do\", \"In Progress\", \"Review\"]. Do not include Maybe?, Not Now, or Done; Fizzy automatically includes those system columns."),
-          initial_columns: column_names_schema("Alias for columns, accepted for compatibility. Send plain column name strings. Do not include Maybe?, Not Now, or Done.")
+          columns: column_definitions_schema("Initial active workflow columns to create. Send an array of plain column name strings like [\"To Do\", \"In Progress\", \"Review\"] or objects with name/color. Do not include Maybe?, Not Now, or Done; Fizzy automatically includes those system columns."),
+          initial_columns: column_definitions_schema("Alias for columns, accepted for compatibility. Send plain column name strings or objects with name/color. Do not include Maybe?, Not Now, or Done.")
         }, required: [ "account_id" ], any_of_required: [ [ "name" ], [ "title" ] ]),
         read_tool("card_list", "List cards", "Use this when the user wants accessible cards in an account, board, or active workflow column.", {
           account_id: string_schema("Account id or account slug"),
@@ -139,7 +148,7 @@ class Mcp::Toolbox
         { type: "array", description: description, items: { type: "string" } }
       end
 
-      def column_names_schema(description)
+      def column_definitions_schema(description)
         {
           type: "array",
           description: description,
@@ -148,10 +157,19 @@ class Mcp::Toolbox
               { type: "string", description: "Active workflow column name" },
               object_schema({
                 name: string_schema("Active workflow column name"),
-                title: string_schema("Alias for name, accepted for compatibility")
+                title: string_schema("Alias for name, accepted for compatibility"),
+                color: column_color_schema
               }, required: [], any_of_required: [ [ "name" ], [ "title" ] ])
             ]
           }
+        }
+      end
+
+      def column_color_schema
+        {
+          type: "string",
+          description: "Column color. Send a color name or CSS value. Options: #{COLUMN_COLOR_OPTIONS}.",
+          enum: COLUMN_COLOR_ARGUMENTS
         }
       end
 
@@ -202,6 +220,8 @@ class Mcp::Toolbox
             columns: array_of_schema(column_schema),
             system_columns: system_columns_schema
           })
+        when "column_update"
+          object_schema(column: column_schema)
         when "card_list"
           object_schema(cards: array_of_schema(card_schema))
         when "card_show"
@@ -446,6 +466,20 @@ class Mcp::Toolbox
     end
   end
 
+  def column_update(arguments)
+    with_account(required_account_identifier(arguments)) do |_account, user|
+      board = user.boards.find(required_argument(arguments, "board_id"))
+      column = board.columns.find(required_argument(arguments, "column_id"))
+      attributes = column_update_attributes(arguments)
+
+      column.update!(attributes)
+
+      {
+        column: column_hash(column.reload)
+      }
+    end
+  end
+
   def board_create(arguments)
     with_account(required_account_identifier(arguments)) do |_account, user|
       board = nil
@@ -458,8 +492,8 @@ class Mcp::Toolbox
           all_access: true
         )
 
-        initial_column_names(arguments).each do |name|
-          board.columns.create!(name: name)
+        initial_column_attributes(arguments).each do |attributes|
+          board.columns.create!(attributes)
         end
       end
 
@@ -692,19 +726,41 @@ class Mcp::Toolbox
       arguments["name"].presence || arguments["title"].presence || raise(Error.new("name is required", code: -32602))
     end
 
-    def initial_column_names(arguments)
+    def initial_column_attributes(arguments)
       array_argument(arguments["columns"].presence || arguments["initial_columns"]).filter_map do |value|
-        column_name_argument(value)
-      end.reject { |name| Board.system_column_name?(name) }
+        column_attributes_argument(value)
+      end.reject { |attributes| Board.system_column_name?(attributes[:name]) }
     end
 
-    def column_name_argument(value)
-      case value
+    def column_attributes_argument(value)
+      name, color = case value
       when Hash
-        value["name"].presence || value["title"].presence
+        [ value["name"].presence || value["title"].presence, value["color"].presence ]
       else
-        value
-      end.to_s.strip.presence
+        [ value, nil ]
+      end
+
+      if name.to_s.strip.present?
+        { name: name.to_s.strip }.tap do |attributes|
+          attributes[:color] = column_color_value(color) if color.present?
+        end
+      end
+    end
+
+    def column_update_attributes(arguments)
+      arguments.slice("name", "color").tap do |attributes|
+        raise Error.new("name or color is required", code: -32602) if attributes.empty?
+
+        attributes["color"] = column_color_value(attributes["color"]) if attributes.key?("color")
+      end
+    end
+
+    def column_color_value(value)
+      color = Color::COLORS.find do |candidate|
+        candidate.value == value.to_s.strip || candidate.name.casecmp?(value.to_s.strip)
+      end
+
+      color&.value || raise(Error.new("color must be one of: #{COLUMN_COLOR_OPTIONS}", code: -32602))
     end
 
     def move_card_to_column_argument(card, column_id)

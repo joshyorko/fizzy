@@ -9,6 +9,7 @@ Read tools require the `read` scope. Mutating tools require `read write`.
 Mutating MCP tools currently include:
 
 - `board_create`
+- `column_update`
 - `card_create`
 - `card_update`
 - `move_card`
@@ -42,6 +43,33 @@ MCP `board_create` creates a board in the authenticated account and can optional
 ```
 
 `title` is accepted as an alias for `name`, and `initial_columns` is accepted as an alias for `columns`. The response includes the board, its URL, and the created columns. The returned board id can be used immediately with `card_create`.
+
+Initial column entries may also be objects with a `name` and optional `color`.
+
+```json
+{
+  "columns": [
+    { "name": "To Do", "color": "Gray" },
+    { "name": "In Progress", "color": "Aqua" },
+    { "name": "Review", "color": "Violet" }
+  ]
+}
+```
+
+## Column Colors
+
+MCP `column_update` renames an active workflow column or changes its color:
+
+```json
+{
+  "account_id": "1234567",
+  "board_id": "03f5v9zkft4hj9qq0lsn9ohcm",
+  "column_id": "03f5v9zkft4hj9qq0lsn9ohcn",
+  "color": "Aqua"
+}
+```
+
+Accepted color names are `Blue`, `Gray`, `Tan`, `Yellow`, `Lime`, `Aqua`, `Violet`, `Purple`, and `Pink`. The matching CSS variable values are accepted too.
 
 ## Golden Tickets
 

@@ -163,6 +163,21 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_insufficient_scope_tool_result
   end
 
+  test "read token cannot update a column" do
+    untenanted do
+      post mcp_path,
+        params: tool_call("column_update",
+          account_id: @account_id,
+          board_id: boards(:writebook).id,
+          column_id: columns(:writebook_triage).id,
+          color: "Aqua"
+        ).to_json,
+        headers: json_headers(@read_token)
+    end
+
+    assert_insufficient_scope_tool_result
+  end
+
   test "write tools advertise read and write scopes with golden ticket fields" do
     untenanted do
       post mcp_path, params: json_rpc("tools/list").to_json, headers: json_headers(@write_token)
@@ -171,6 +186,7 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     tools = @response.parsed_body.dig("result", "tools")
     board_create = tools.find { |tool| tool["name"] == "board_create" }
+    column_update = tools.find { |tool| tool["name"] == "column_update" }
     card_update = tools.find { |tool| tool["name"] == "card_update" }
 
     assert_equal [ "read", "write" ], board_create.dig("securitySchemes", 0, "scopes")
@@ -184,6 +200,13 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_equal "object", board_create.dig("inputSchema", "properties", "columns", "items", "anyOf", 1, "type")
     assert_includes board_create.dig("inputSchema", "properties", "columns", "description"), "plain column name strings"
     assert_includes board_create.dig("inputSchema", "properties", "columns", "description"), "Do not include"
+    assert_equal [ "read", "write" ], column_update.dig("securitySchemes", 0, "scopes")
+    assert_equal false, column_update.dig("annotations", "readOnlyHint")
+    assert_equal false, column_update.dig("annotations", "destructiveHint")
+    assert_equal [ "account_id", "board_id", "column_id" ], column_update.dig("inputSchema", "required")
+    assert_equal [ [ "name" ], [ "color" ] ], column_update.dig("inputSchema", "anyOf").map { |schema| schema["required"] }
+    assert_includes column_update.dig("inputSchema", "properties", "color", "enum"), "Aqua"
+    assert_includes column_update.dig("inputSchema", "properties", "color", "enum"), "var(--color-card-5)"
     assert_equal [ "read", "write" ], card_update.dig("securitySchemes", 0, "scopes")
     assert_equal [ "read", "write" ], card_update.dig("_meta", "securitySchemes", 0, "scopes")
     assert_equal false, card_update.dig("annotations", "readOnlyHint")
@@ -208,6 +231,7 @@ class McpControllerTest < ActionDispatch::IntegrationTest
 
     account_list = tools.find { |tool| tool["name"] == "account_list" }
     board_create = tools.find { |tool| tool["name"] == "board_create" }
+    column_update = tools.find { |tool| tool["name"] == "column_update" }
     fetch = tools.find { |tool| tool["name"] == "fetch" }
     search = tools.find { |tool| tool["name"] == "search" }
 
@@ -217,6 +241,8 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_equal "array", board_create.dig("outputSchema", "properties", "columns", "type")
     assert_equal "array", board_create.dig("outputSchema", "properties", "system_columns", "type")
     assert_equal "string", board_create.dig("outputSchema", "properties", "board", "properties", "public_description_html", "type")
+    assert_equal "object", column_update.dig("outputSchema", "properties", "column", "type")
+    assert_equal "string", column_update.dig("outputSchema", "properties", "column", "properties", "color", "type")
     assert_equal "string", fetch.dig("outputSchema", "properties", "text", "type")
     assert_equal "object", fetch.dig("outputSchema", "properties", "metadata", "type")
   end
@@ -240,6 +266,48 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     color = @response.parsed_body.dig("result", "structuredContent", "columns").first["color"]
     assert_kind_of String, color
     assert_equal [ "Maybe?", "Not Now", "Done" ], @response.parsed_body.dig("result", "structuredContent", "system_columns")
+  end
+
+  test "write token can update a column color" do
+    column = columns(:writebook_in_progress)
+
+    untenanted do
+      post mcp_path,
+        params: tool_call("column_update",
+          account_id: @account_id,
+          board_id: boards(:writebook).id,
+          column_id: column.id,
+          name: "Doing",
+          color: "Aqua"
+        ).to_json,
+        headers: json_headers(@write_token)
+    end
+
+    assert_response :success
+    assert_equal "Doing", column.reload.name
+    assert_equal Color.for_value("var(--color-card-5)"), column.color
+    assert_equal "Doing", @response.parsed_body.dig("result", "structuredContent", "column", "name")
+    assert_equal "var(--color-card-5)", @response.parsed_body.dig("result", "structuredContent", "column", "color")
+  end
+
+  test "column update rejects unknown colors" do
+    column = columns(:writebook_in_progress)
+
+    untenanted do
+      post mcp_path,
+        params: tool_call("column_update",
+          account_id: @account_id,
+          board_id: boards(:writebook).id,
+          column_id: column.id,
+          color: "chartreuse"
+        ).to_json,
+        headers: json_headers(@write_token)
+    end
+
+    assert_response :success
+    assert_equal -32602, @response.parsed_body.dig("error", "code")
+    assert_match "color must be one of", @response.parsed_body.dig("error", "message")
+    assert_equal "var(--color-card-2)", column.reload.color.to_s
   end
 
   test "write token can create a card" do
@@ -315,8 +383,8 @@ class McpControllerTest < ActionDispatch::IntegrationTest
               account_id: @account_id,
               name: "ChatGPT Board",
               columns: [
-                { name: "To Do" },
-                { title: "In Progress" },
+                { name: "To Do", color: "Gray" },
+                { title: "In Progress", color: "var(--color-card-5)" },
                 "Review",
                 "Done",
                 "Not Now",
@@ -334,6 +402,7 @@ class McpControllerTest < ActionDispatch::IntegrationTest
 
     assert_equal [ "To Do", "In Progress", "Review" ], board.columns.sorted.pluck(:name)
     assert_equal [ "To Do", "In Progress", "Review" ], payload["columns"].map { |column| column["name"] }
+    assert_equal [ "var(--color-card-1)", "var(--color-card-5)", "var(--color-card-default)" ], payload["columns"].map { |column| column["color"] }
     assert_equal [ "Maybe?", "Not Now", "Done" ], payload["system_columns"]
   end
 
