@@ -155,6 +155,47 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert tools.any? { |tool| tool["name"] == "move_card" }
   end
 
+  test "tools advertise output schemas for structured content" do
+    untenanted do
+      post mcp_path, params: json_rpc("tools/list").to_json, headers: json_headers(@write_token)
+    end
+
+    assert_response :success
+    tools = @response.parsed_body.dig("result", "tools")
+
+    assert tools.all? { |tool| tool["outputSchema"].present? }, "Every tool should advertise outputSchema"
+
+    account_list = tools.find { |tool| tool["name"] == "account_list" }
+    board_create = tools.find { |tool| tool["name"] == "board_create" }
+    fetch = tools.find { |tool| tool["name"] == "fetch" }
+
+    assert_equal "array", account_list.dig("outputSchema", "properties", "accounts", "type")
+    assert_equal "array", board_create.dig("outputSchema", "properties", "columns", "type")
+    assert_equal "string", board_create.dig("outputSchema", "properties", "board", "properties", "public_description_html", "type")
+    assert_equal "string", fetch.dig("outputSchema", "properties", "text", "type")
+    assert_equal "object", fetch.dig("outputSchema", "properties", "metadata", "type")
+  end
+
+  test "column list returns colors matching its output schema" do
+    untenanted do
+      post mcp_path, params: json_rpc("tools/list").to_json, headers: json_headers(@write_token)
+    end
+
+    assert_response :success
+    column_list = @response.parsed_body.dig("result", "tools").find { |tool| tool["name"] == "column_list" }
+    assert_equal "string", column_list.dig("outputSchema", "properties", "columns", "items", "properties", "color", "type")
+
+    untenanted do
+      post mcp_path,
+        params: tool_call("column_list", account_id: @account_id, board_id: boards(:writebook).id).to_json,
+        headers: json_headers(@write_token)
+    end
+
+    assert_response :success
+    color = @response.parsed_body.dig("result", "structuredContent", "columns").first["color"]
+    assert_kind_of String, color
+  end
+
   test "write token can create a card" do
     assert_difference -> { boards(:writebook).cards.count }, +1 do
       untenanted do

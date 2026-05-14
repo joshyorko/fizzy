@@ -121,6 +121,7 @@ class Mcp::Toolbox
             properties: properties,
             required: required
           },
+          outputSchema: output_schema_for(name),
           annotations: { readOnlyHint: read_only, destructiveHint: false },
           securitySchemes: security_schemes,
           _meta: { securitySchemes: security_schemes }
@@ -145,6 +146,191 @@ class Mcp::Toolbox
 
       def integer_schema(description)
         { type: "integer", description: description, minimum: 1, maximum: 50 }
+      end
+
+      def output_schema_for(name)
+        case name
+        when "search"
+          object_schema(results: array_of_schema(search_result_schema))
+        when "fetch"
+          object_schema({
+            id: string_schema("Card id"),
+            title: string_schema("Card title"),
+            text: string_schema("Plain-text card description"),
+            html: string_schema("HTML card description"),
+            url: string_schema("Canonical card URL"),
+            metadata: card_metadata_schema
+          })
+        when "identity_show"
+          object_schema({
+            id: string_schema("Identity id"),
+            email_address: string_schema("Identity email address")
+          })
+        when "account_list"
+          object_schema(accounts: array_of_schema(account_schema))
+        when "board_list"
+          object_schema(boards: array_of_schema(board_schema))
+        when "board_show"
+          object_schema({
+            board: board_schema,
+            columns: array_of_schema(column_schema)
+          })
+        when "column_list"
+          object_schema(columns: array_of_schema(column_schema))
+        when "board_create"
+          object_schema({
+            board: board_schema.merge(properties: board_schema[:properties].merge(board_description_schema[:properties])),
+            columns: array_of_schema(column_schema)
+          })
+        when "card_list"
+          object_schema(cards: array_of_schema(card_schema))
+        when "card_show"
+          object_schema({
+            card: card_schema,
+            text: string_schema("Plain-text card description"),
+            metadata: card_metadata_schema
+          })
+        when "card_create", "card_update", "move_card"
+          object_schema({
+            card: card_schema,
+            metadata: card_metadata_schema
+          })
+        when "comment_list"
+          object_schema(comments: array_of_schema(comment_schema))
+        when "comment_create"
+          object_schema(comment: comment_schema)
+        else
+          raise ArgumentError, "Missing output schema for #{name}"
+        end
+      end
+
+      def object_schema(properties = nil, required: nil, **keyword_properties)
+        properties ||= keyword_properties
+
+        {
+          type: "object",
+          properties: properties,
+          required: required || properties.keys.map(&:to_s)
+        }
+      end
+
+      def array_of_schema(item_schema)
+        { type: "array", items: item_schema }
+      end
+
+      def nullable_schema(schema)
+        { anyOf: [ schema, { type: "null" } ] }
+      end
+
+      def account_schema
+        object_schema({
+          id: string_schema("Account id"),
+          external_account_id: string_schema("External account id"),
+          name: string_schema("Account name"),
+          slug: string_schema("Account URL slug"),
+          user: object_schema({
+            id: string_schema("User id"),
+            name: string_schema("User name"),
+            role: string_schema("User role")
+          })
+        })
+      end
+
+      def board_schema
+        object_schema({
+          id: string_schema("Board id"),
+          name: string_schema("Board name"),
+          all_access: boolean_schema("Whether all account users can access the board"),
+          url: string_schema("Board URL"),
+          created_at: timestamp_schema("Board creation timestamp"),
+          auto_postpone_period_in_days: { type: "integer", description: "Auto-postpone period in days" }
+        })
+      end
+
+      def board_description_schema
+        object_schema({
+          public_description: string_schema("Plain-text public board description"),
+          public_description_html: string_schema("HTML public board description")
+        })
+      end
+
+      def column_schema
+        object_schema({
+          id: string_schema("Column id"),
+          name: string_schema("Column name"),
+          color: string_schema("Column color"),
+          created_at: timestamp_schema("Column creation timestamp")
+        })
+      end
+
+      def card_schema
+        object_schema({
+          id: string_schema("Card id"),
+          number: { type: "integer", description: "Card number" },
+          title: string_schema("Card title"),
+          status: string_schema("Card status"),
+          description: string_schema("Plain-text card description"),
+          description_html: string_schema("HTML card description"),
+          url: string_schema("Card URL"),
+          board: board_schema,
+          column: nullable_schema(column_schema),
+          tags: array_of_schema(string_schema("Tag title with leading #")),
+          golden: boolean_schema("Whether the card is marked golden"),
+          steps: array_of_schema(step_schema),
+          created_at: timestamp_schema("Card creation timestamp"),
+          last_active_at: timestamp_schema("Card last activity timestamp")
+        })
+      end
+
+      def step_schema
+        object_schema({
+          id: string_schema("Step id"),
+          content: string_schema("Step content"),
+          completed: boolean_schema("Whether the step is completed")
+        })
+      end
+
+      def card_metadata_schema
+        object_schema({
+          account_id: string_schema("Account id"),
+          external_account_id: string_schema("External account id"),
+          account_name: string_schema("Account name"),
+          board_id: string_schema("Board id"),
+          board_name: string_schema("Board name"),
+          card_number: { type: "integer", description: "Card number" },
+          status: string_schema("Card status"),
+          tags: array_of_schema(string_schema("Tag title with leading #")),
+          golden: boolean_schema("Whether the card is marked golden")
+        })
+      end
+
+      def search_result_schema
+        object_schema({
+          id: string_schema("Card id"),
+          title: string_schema("Card title"),
+          url: string_schema("Card URL"),
+          metadata: card_metadata_schema
+        })
+      end
+
+      def comment_schema
+        object_schema({
+          id: string_schema("Comment id"),
+          body: string_schema("Plain-text comment body"),
+          body_html: string_schema("HTML comment body"),
+          creator: object_schema({
+            id: string_schema("Comment creator id"),
+            name: string_schema("Comment creator name")
+          }),
+          card_id: string_schema("Card id"),
+          url: string_schema("Comment URL"),
+          created_at: timestamp_schema("Comment creation timestamp"),
+          updated_at: timestamp_schema("Comment update timestamp")
+        })
+      end
+
+      def timestamp_schema(description)
+        { type: "string", description: description, format: "date-time" }
       end
   end
 
@@ -578,7 +764,7 @@ class Mcp::Toolbox
       {
         id: column.id,
         name: column.name,
-        color: column.color,
+        color: column.color.to_s,
         created_at: column.created_at.utc.iso8601
       }
     end
