@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.2].define(version: 2026_05_13_114252) do
+ActiveRecord::Schema[8.2].define(version: 2026_05_14_160000) do
   create_table "accesses", id: :uuid, force: :cascade do |t|
     t.datetime "accessed_at"
     t.uuid "account_id", null: false
@@ -353,13 +353,22 @@ ActiveRecord::Schema[8.2].define(version: 2026_05_13_114252) do
   create_table "identity_access_tokens", id: :uuid, force: :cascade do |t|
     t.datetime "created_at", null: false
     t.text "description", limit: 65535
+    t.datetime "expires_at"
     t.uuid "identity_id", null: false
+    t.datetime "last_used_at"
     t.uuid "oauth_client_id"
     t.string "permission", limit: 255
+    t.string "resource"
+    t.datetime "revoked_at"
     t.string "token", limit: 255
+    t.string "token_digest"
     t.datetime "updated_at", null: false
+    t.index ["expires_at"], name: "index_identity_access_tokens_on_expires_at"
     t.index ["identity_id"], name: "index_access_token_on_identity_id"
     t.index ["oauth_client_id"], name: "index_identity_access_tokens_on_oauth_client_id"
+    t.index ["resource"], name: "index_identity_access_tokens_on_resource"
+    t.index ["revoked_at"], name: "index_identity_access_tokens_on_revoked_at"
+    t.index ["token_digest"], name: "index_identity_access_tokens_on_token_digest", unique: true
   end
 
   create_table "magic_links", id: :uuid, force: :cascade do |t|

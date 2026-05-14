@@ -41,8 +41,11 @@ class Oauth::TokensControllerTest < ActionDispatch::IntegrationTest
     assert body["access_token"].present?
     assert_equal "Bearer", body["token_type"]
     assert_equal "read write", body["scope"]
+    assert_equal Identity::AccessToken::OAUTH_EXPIRES_IN.to_i, body["expires_in"]
     assert identities(:david).access_tokens.last.write?
     assert_equal @client, identities(:david).access_tokens.last.oauth_client
+    assert_equal mcp_url(script_name: nil), identities(:david).access_tokens.last.resource
+    assert identities(:david).access_tokens.last.expires_at.future?
     assert @authorization_code.reload.used_at.present?
   end
 

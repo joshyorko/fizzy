@@ -7,7 +7,7 @@ module Oauth::Scope
       requested = scope.to_s.split & SUPPORTED
       requested = [ "read" ] if requested.empty?
       requested.unshift("read") if requested.include?("write") && requested.exclude?("read")
-      requested.uniq.join(" ")
+      ordered(requested).join(" ")
     end
 
     def valid?(scope)
@@ -17,5 +17,10 @@ module Oauth::Scope
     def permission_for(scope)
       normalize(scope).split.include?("write") ? "write" : "read"
     end
+
+    private
+      def ordered(scopes)
+        scopes.uniq.sort_by { |scope| SUPPORTED.index(scope) || SUPPORTED.length }
+      end
   end
 end

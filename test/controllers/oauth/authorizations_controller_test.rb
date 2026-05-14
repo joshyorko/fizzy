@@ -73,6 +73,22 @@ class Oauth::AuthorizationsControllerTest < ActionDispatch::IntegrationTest
     assert_match "form-action 'self' https://chatgpt.com https://chat.openai.com", @response.headers["Content-Security-Policy"]
   end
 
+  test "consent page presents normalized access and connection details" do
+    sign_in_as :david
+
+    untenanted do
+      get oauth_authorize_path, params: authorization_params(scope: "write read")
+    end
+
+    assert_response :success
+    assert_match "Access requested:", @response.body
+    assert_match "Read + Write", @response.body
+    assert_match "Connection details", @response.body
+    assert_match "Client ID:", @response.body
+    assert_match "Redirects to:", @response.body
+    assert_select "input[name=scope][value='read write']", count: 1
+  end
+
   test "consent page allows registered loopback oauth callback after form post" do
     @client.update!(client_name: "Codex", redirect_uris: [ codex_redirect_uri ])
     sign_in_as :david

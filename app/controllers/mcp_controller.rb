@@ -58,7 +58,7 @@ class McpController < ApplicationController
     end
 
     def authenticate_access_token
-      if bearer_token.present? && (@access_token = Identity::AccessToken.find_by(token: bearer_token))
+      if @access_token = Identity::AccessToken.authenticate(bearer_token, resource: mcp_resource_url)
         Current.identity = @access_token.identity
       else
         response.headers["WWW-Authenticate"] = bearer_challenge(error: "invalid_token", error_description: "Missing or invalid bearer token")
@@ -78,6 +78,10 @@ class McpController < ApplicationController
 
     def bearer_token
       request.authorization.to_s[/\ABearer (.+)\z/i, 1]
+    end
+
+    def mcp_resource_url
+      mcp_url(script_name: nil)
     end
 
     def parsed_message

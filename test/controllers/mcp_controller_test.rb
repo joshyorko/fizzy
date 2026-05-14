@@ -2,8 +2,8 @@ require "test_helper"
 
 class McpControllerTest < ActionDispatch::IntegrationTest
   setup do
-    @read_token = identity_access_tokens(:jasons_api_token).token
-    @write_token = identity_access_tokens(:davids_api_token).token
+    @read_token = fixture_access_token(:jasons_api_token)
+    @write_token = fixture_access_token(:davids_api_token)
     @account_id = accounts(:'37s').external_account_id.to_s
   end
 
@@ -38,6 +38,39 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :unauthorized
+  end
+
+  test "oauth bearer token must match the mcp resource audience" do
+    client = Oauth::Client.create!(
+      client_name: "ChatGPT",
+      redirect_uris: [ "https://chat.openai.com/aip/plugin/oauth/callback" ],
+      scope: "read write"
+    )
+    wrong_resource_token = identities(:david).access_tokens.create!(
+      description: "Wrong audience",
+      permission: "write",
+      oauth_client: client,
+      resource: "https://example.test/mcp"
+    ).token
+
+    untenanted do
+      post mcp_path, params: json_rpc("initialize").to_json, headers: json_headers(wrong_resource_token)
+    end
+
+    assert_response :unauthorized
+
+    right_resource_token = identities(:david).access_tokens.create!(
+      description: "Right audience",
+      permission: "write",
+      oauth_client: client,
+      resource: mcp_url(script_name: nil)
+    ).token
+
+    untenanted do
+      post mcp_path, params: json_rpc("initialize").to_json, headers: json_headers(right_resource_token)
+    end
+
+    assert_response :success
   end
 
   test "read token can initialize and call read tool" do

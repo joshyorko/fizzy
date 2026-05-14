@@ -8,7 +8,8 @@ class Oauth::TokensController < Oauth::BaseController
       render json: {
         access_token: access_token.token,
         token_type: "Bearer",
-        scope: @authorization_code.scope
+        scope: @authorization_code.scope,
+        expires_in: Identity::AccessToken::OAUTH_EXPIRES_IN.to_i
       }
     else
       render status: :bad_request, json: { error: "invalid_grant" }
@@ -25,7 +26,8 @@ class Oauth::TokensController < Oauth::BaseController
           @authorization_code.identity.access_tokens.create!(
             description: "MCP OAuth (#{@authorization_code.client.client_name.presence || @authorization_code.client.client_id})",
             permission: Oauth::Scope.permission_for(@authorization_code.scope),
-            oauth_client: @authorization_code.client
+            oauth_client: @authorization_code.client,
+            resource: @authorization_code.resource
           )
         end
       end
