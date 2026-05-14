@@ -88,6 +88,16 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
   end
 
+  test "read token cannot create a board" do
+    untenanted do
+      post mcp_path,
+        params: tool_call("board_create", account_id: @account_id, name: "Nope").to_json,
+        headers: json_headers(@read_token)
+    end
+
+    assert_response :forbidden
+  end
+
   test "write tools advertise read and write scopes with golden ticket fields" do
     untenanted do
       post mcp_path, params: json_rpc("tools/list").to_json, headers: json_headers(@write_token)
@@ -95,8 +105,13 @@ class McpControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     tools = @response.parsed_body.dig("result", "tools")
+    board_create = tools.find { |tool| tool["name"] == "board_create" }
     card_update = tools.find { |tool| tool["name"] == "card_update" }
 
+    assert_equal [ "read", "write" ], board_create.dig("securitySchemes", 0, "scopes")
+    assert_equal false, board_create.dig("annotations", "readOnlyHint")
+    assert_equal [ "account_id", "name" ], board_create.dig("inputSchema", "required")
+    assert_equal "array", board_create.dig("inputSchema", "properties", "columns", "type")
     assert_equal [ "read", "write" ], card_update.dig("securitySchemes", 0, "scopes")
     assert_equal [ "read", "write" ], card_update.dig("_meta", "securitySchemes", 0, "scopes")
     assert_equal false, card_update.dig("annotations", "readOnlyHint")
@@ -126,6 +141,49 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     card = Card.order(:created_at).last
     assert_equal "MCP card", card.title
     assert_equal "Created from ChatGPT", card.description.to_plain_text
+  end
+
+  test "write token can create a board with columns and then create a card on it" do
+    assert_difference -> { Board.count }, +1 do
+      assert_difference -> { Column.count }, +2 do
+        untenanted do
+          post mcp_path,
+            params: tool_call("board_create",
+              account_id: @account_id,
+              title: "Agent Heartbeat",
+              description: "<p>Tracks agent heartbeat work.</p>",
+              columns: [ "Inbox", "Done" ]
+            ).to_json,
+            headers: json_headers(@write_token)
+        end
+      end
+    end
+
+    assert_response :success
+    payload = @response.parsed_body.dig("result", "structuredContent")
+    board = Board.find(payload.dig("board", "id"))
+
+    assert_equal "Agent Heartbeat", board.name
+    assert_equal "Tracks agent heartbeat work.", board.public_description.to_plain_text
+    assert_equal users(:david), board.creator
+    assert board.all_access?
+    assert_includes payload.dig("board", "url"), board.id
+    assert_equal [ "Inbox", "Done" ], payload["columns"].map { |column| column["name"] }
+
+    assert_difference -> { board.cards.count }, +1 do
+      untenanted do
+        post mcp_path,
+          params: tool_call("card_create",
+            account_id: @account_id,
+            board_id: board.id,
+            title: "Heartbeat card"
+          ).to_json,
+          headers: json_headers(@write_token)
+      end
+    end
+
+    assert_response :success
+    assert_equal "Heartbeat card", board.cards.last.title
   end
 
   test "write token can create a golden ticket card with html tags and steps" do

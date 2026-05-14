@@ -8,8 +8,10 @@ Read tools require the `read` scope. Mutating tools require `read write`.
 
 Mutating MCP tools currently include:
 
+- `board_create`
 - `card_create`
 - `card_update`
+- `move_card`
 - `comment_create`
 
 If a client can list cards but cannot create or update them, re-authorize it with `read write` or use a personal access token with `Read + Write` permission.
@@ -25,6 +27,21 @@ Card descriptions and comment bodies are Action Text rich text fields. Send HTML
 ```
 
 Plain text is accepted, but Markdown is not the rich text format. HTML is sanitized before storage.
+
+## Board Creation
+
+MCP `board_create` creates a board in the authenticated account and can optionally create initial columns:
+
+```json
+{
+  "account_id": "1234567",
+  "name": "Agent Heartbeat",
+  "description": "<p>Tracks agent heartbeat work.</p>",
+  "columns": ["Inbox", "In progress", "Done"]
+}
+```
+
+`title` is accepted as an alias for `name`, and `initial_columns` is accepted as an alias for `columns`. The response includes the board, its URL, and the created columns. The returned board id can be used immediately with `card_create`.
 
 ## Golden Tickets
 
