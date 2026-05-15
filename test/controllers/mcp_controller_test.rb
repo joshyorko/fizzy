@@ -185,7 +185,7 @@ class McpControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     tools = @response.parsed_body.dig("result", "tools")
-    assert tools.none? { |tool| tool.dig("inputSchema", "anyOf").present? }, "Codex rejects top-level anyOf in MCP tool schemas"
+    tools.each { |tool| assert_openai_tool_schema_compatible(tool) }
     board_create = tools.find { |tool| tool["name"] == "board_create" }
     column_update = tools.find { |tool| tool["name"] == "column_update" }
     card_update = tools.find { |tool| tool["name"] == "card_update" }
@@ -205,8 +205,8 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_equal false, column_update.dig("annotations", "destructiveHint")
     assert_equal [ "account_id", "board_id", "column_id" ], column_update.dig("inputSchema", "required")
     assert_nil column_update.dig("inputSchema", "anyOf")
-    assert_includes column_update.dig("inputSchema", "properties", "color", "enum"), "Aqua"
-    assert_includes column_update.dig("inputSchema", "properties", "color", "enum"), "var(--color-card-5)"
+    assert_includes column_update.dig("inputSchema", "properties", "color", "description"), "Aqua"
+    assert_includes column_update.dig("inputSchema", "properties", "color", "description"), "var(--color-card-5)"
     assert_equal [ "read", "write" ], card_update.dig("securitySchemes", 0, "scopes")
     assert_equal [ "read", "write" ], card_update.dig("_meta", "securitySchemes", 0, "scopes")
     assert_equal false, card_update.dig("annotations", "readOnlyHint")
@@ -792,5 +792,27 @@ class McpControllerTest < ActionDispatch::IntegrationTest
       assert_equal "Insufficient scope", result.dig("content", 0, "text")
       assert_match "insufficient_scope", result.dig("_meta", "mcp/www_authenticate")
       assert_match "resource_metadata=", result.dig("_meta", "mcp/www_authenticate")
+    end
+
+    def assert_openai_tool_schema_compatible(tool)
+      schema = tool["inputSchema"]
+      assert_equal "object", schema["type"], "#{tool["name"]} inputSchema must be an object"
+
+      unsupported_paths = unsupported_json_schema_keyword_paths(schema, "#{tool["name"]}.inputSchema")
+      assert_empty unsupported_paths, "OpenAI rejects these MCP input schema keywords: #{unsupported_paths.join(", ")}"
+    end
+
+    def unsupported_json_schema_keyword_paths(value, path)
+      case value
+      when Hash
+        value.flat_map do |key, nested|
+          paths = %w[ oneOf anyOf allOf enum not ].include?(key.to_s) ? [ "#{path}.#{key}" ] : []
+          paths + unsupported_json_schema_keyword_paths(nested, "#{path}.#{key}")
+        end
+      when Array
+        value.each_with_index.flat_map { |nested, index| unsupported_json_schema_keyword_paths(nested, "#{path}[#{index}]") }
+      else
+        []
+      end
     end
 end

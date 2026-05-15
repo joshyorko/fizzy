@@ -16,7 +16,6 @@ class Mcp::Toolbox
 
   WRITE_TOOLS = %w[ board_create column_update card_create card_update move_card comment_create ].freeze
   COLUMN_COLOR_OPTIONS = Color::COLORS.map { |color| "#{color.name} (#{color.value})" }.join(", ")
-  COLUMN_COLOR_ARGUMENTS = Color::COLORS.flat_map { |color| [ color.name, color.value ] }.freeze
 
   class << self
     def tool_definitions
@@ -158,8 +157,7 @@ class Mcp::Toolbox
       def column_color_schema
         {
           type: "string",
-          description: "Column color. Send a color name or CSS value. Options: #{COLUMN_COLOR_OPTIONS}.",
-          enum: COLUMN_COLOR_ARGUMENTS
+          description: "Column color. Send one of these color names or CSS values: #{COLUMN_COLOR_OPTIONS}."
         }
       end
 
@@ -234,16 +232,14 @@ class Mcp::Toolbox
         end
       end
 
-      def object_schema(properties = nil, required: nil, any_of_required: nil, **keyword_properties)
+      def object_schema(properties = nil, required: nil, **keyword_properties)
         properties ||= keyword_properties
 
-        schema = {
+        {
           type: "object",
           properties: properties,
           required: required || properties.keys.map(&:to_s)
         }
-        schema[:anyOf] = any_of_required.map { |keys| { required: keys } } if any_of_required.present?
-        schema
       end
 
       def array_of_schema(item_schema)
@@ -251,7 +247,7 @@ class Mcp::Toolbox
       end
 
       def nullable_schema(schema)
-        { anyOf: [ schema, { type: "null" } ] }
+        schema
       end
 
       def system_columns_schema
