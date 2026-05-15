@@ -1,0 +1,44 @@
+<% client_name = @client.client_name.presence || "MCP client" %>
+<% @page_title = "Connect #{client_name}" %>
+
+<section class="panel panel--centered flex flex-column gap">
+  <header class="flex flex-column gap-half">
+    <h1 class="txt-x-large font-weight-black margin-none">Connect <%= client_name %></h1>
+    <p class="txt-medium txt-balance margin-none">
+      <strong><%= client_name %></strong> wants access to your active Fizzy accounts for this identity.
+    </p>
+  </header>
+
+  <div class="fill-shade border-radius pad txt-small">
+    <strong>Access requested:</strong>
+    <%= @scope.split.map(&:capitalize).join(" + ") %>
+    <br>
+    <strong>Connection details:</strong>
+    <br>
+    <strong>Client ID:</strong>
+    <%= @client.client_id %>
+    <br>
+    <strong>Redirects to:</strong>
+    <%= @redirect_uri %>
+  </div>
+
+  <%= form_with url: oauth_authorize_path, method: :post, class: "flex flex-column gap-half", data: { turbo: false } do |form| %>
+    <%= form.hidden_field :response_type, value: "code" %>
+    <%= form.hidden_field :client_id, value: @client.client_id %>
+    <%= form.hidden_field :redirect_uri, value: @redirect_uri %>
+    <%= form.hidden_field :scope, value: @scope %>
+    <%= form.hidden_field :state, value: @state %>
+    <%= form.hidden_field :resource, value: @resource %>
+    <%= form.hidden_field :code_challenge, value: @code_challenge %>
+    <%= form.hidden_field :code_challenge_method, value: @code_challenge_method %>
+
+    <button type="submit" class="btn btn--link center txt-medium">
+      <span>Allow access</span>
+      <%= icon_tag "arrow-right" %>
+    </button>
+  <% end %>
+</section>
+
+<% content_for :footer do %>
+  <%= render "sessions/footer" %>
+<% end %>

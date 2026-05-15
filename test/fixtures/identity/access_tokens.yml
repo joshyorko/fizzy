@@ -1,11 +1,13 @@
 jasons_api_token:
   identity: jason
-  token: 018cf1425682700098f24f0799e3fe20
+  token_digest: 4b136ac82ad054f37e53824f34ced4a39d95521a5be3083b1e530b29895853e0
   description: My Superscript
   permission: read
+  expires_at: <%= 1.year.from_now %>
 
 davids_api_token:
   identity: david
-  token: x18cf1425682700098f24f0799e3fe20
+  token_digest: fe6dd5bf807ec3658c23588c7e67279d67a804bcaf7d0bd9668e85cbc5c12ad7
   description: My Superscript
   permission: write
+  expires_at: <%= 1.year.from_now %>

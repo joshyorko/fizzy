@@ -20,6 +20,7 @@ a bot to perform various actions for you.
 - [Activities](sections/activities.md)
 - [Notifications](sections/notifications.md)
 - [Rich Text](sections/rich_text.md)
+- [MCP](sections/mcp.md)
 - [Exports](sections/exports.md)
 - [Webhooks](sections/webhooks.md)
 
@@ -146,5 +147,4 @@ curl -X PUT \
 Some fields accept rich text content. These fields accept HTML input, which will be sanitized to remove unsafe tags and attributes.
 
 See the [rich text guide](sections/rich_text.md) for more information, including how to attach files to rich text fields using the direct upload flow.
-
 

@@ -1,0 +1,32 @@
+name: "fizzy"
+
+services:
+  rails-app:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+
+    volumes:
+    - ..:/workspaces/fizzy:cached
+
+    # Overrides the default command so the devcontainer stays up between tasks.
+    command: sleep infinity
+
+    depends_on:
+    - selenium
+
+  selenium:
+    image: selenium/standalone-chromium
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_ROOT_HOST: "%"
+    volumes:
+    - mysql-data:/var/lib/mysql
+
+volumes:
+  mysql-data:
