@@ -19,7 +19,12 @@ class Mcp::Toolbox
 
   class << self
     def tool_definitions
-      [
+      all_tool_definitions.reject { |tool| tool_disabled?(tool[:name]) }
+    end
+
+    private
+      def all_tool_definitions
+        [
         read_tool("search", "Search cards", "Use this when the user wants to find Fizzy cards by text.", {
           query: string_schema("Search terms")
         }, required: [ "query" ]),
@@ -102,10 +107,17 @@ class Mcp::Toolbox
           card_id: string_schema("Card id or card number"),
           body: rich_text_schema("Comment body")
         }, required: [ "card_id", "body" ])
-      ]
-    end
+        ]
+      end
 
-    private
+      def disabled_tool_names
+        ENV.fetch("FIZZY_MCP_DISABLED_TOOLS", "").split(",").map(&:strip).reject(&:blank?)
+      end
+
+      def tool_disabled?(name)
+        name.in?(disabled_tool_names) || "_#{name}".in?(disabled_tool_names)
+      end
+
       def read_tool(name, title, description, properties, required: [])
         tool(name, title, description, properties, required: required, scopes: [ "read" ], read_only: true)
       end

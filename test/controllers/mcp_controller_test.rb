@@ -219,6 +219,21 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert tools.any? { |tool| tool["name"] == "move_card" }
   end
 
+  test "tools list can disable advertised mcp tools from environment" do
+    with_env "FIZZY_MCP_DISABLED_TOOLS", "_board_create, card_update" do
+      untenanted do
+        post mcp_path, params: json_rpc("tools/list").to_json, headers: json_headers(@write_token)
+      end
+    end
+
+    assert_response :success
+    tool_names = @response.parsed_body.dig("result", "tools").pluck("name")
+
+    assert_not_includes tool_names, "board_create"
+    assert_not_includes tool_names, "card_update"
+    assert_includes tool_names, "board_list"
+  end
+
   test "tools advertise output schemas for structured content" do
     untenanted do
       post mcp_path, params: json_rpc("tools/list").to_json, headers: json_headers(@write_token)
@@ -814,5 +829,13 @@ class McpControllerTest < ActionDispatch::IntegrationTest
       else
         []
       end
+    end
+
+    def with_env(name, value)
+      previous = ENV[name]
+      ENV[name] = value
+      yield
+    ensure
+      ENV[name] = previous
     end
 end
