@@ -185,6 +185,7 @@ class McpControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     tools = @response.parsed_body.dig("result", "tools")
+    assert tools.none? { |tool| tool.dig("inputSchema", "anyOf").present? }, "Codex rejects top-level anyOf in MCP tool schemas"
     board_create = tools.find { |tool| tool["name"] == "board_create" }
     column_update = tools.find { |tool| tool["name"] == "column_update" }
     card_update = tools.find { |tool| tool["name"] == "card_update" }
@@ -193,18 +194,17 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_equal false, board_create.dig("annotations", "readOnlyHint")
     assert_equal false, board_create.dig("annotations", "openWorldHint")
     assert_match(/\AUse this when/, board_create["description"])
-    assert_equal [ "account_id" ], board_create.dig("inputSchema", "required")
-    assert_equal [ [ "name" ], [ "title" ] ], board_create.dig("inputSchema", "anyOf").map { |schema| schema["required"] }
+    assert_equal [ "account_id", "name" ], board_create.dig("inputSchema", "required")
+    assert_nil board_create.dig("inputSchema", "anyOf")
     assert_equal "array", board_create.dig("inputSchema", "properties", "columns", "type")
-    assert_equal "string", board_create.dig("inputSchema", "properties", "columns", "items", "anyOf", 0, "type")
-    assert_equal "object", board_create.dig("inputSchema", "properties", "columns", "items", "anyOf", 1, "type")
+    assert_equal "string", board_create.dig("inputSchema", "properties", "columns", "items", "type")
     assert_includes board_create.dig("inputSchema", "properties", "columns", "description"), "plain column name strings"
     assert_includes board_create.dig("inputSchema", "properties", "columns", "description"), "Do not include"
     assert_equal [ "read", "write" ], column_update.dig("securitySchemes", 0, "scopes")
     assert_equal false, column_update.dig("annotations", "readOnlyHint")
     assert_equal false, column_update.dig("annotations", "destructiveHint")
     assert_equal [ "account_id", "board_id", "column_id" ], column_update.dig("inputSchema", "required")
-    assert_equal [ [ "name" ], [ "color" ] ], column_update.dig("inputSchema", "anyOf").map { |schema| schema["required"] }
+    assert_nil column_update.dig("inputSchema", "anyOf")
     assert_includes column_update.dig("inputSchema", "properties", "color", "enum"), "Aqua"
     assert_includes column_update.dig("inputSchema", "properties", "color", "enum"), "var(--color-card-5)"
     assert_equal [ "read", "write" ], card_update.dig("securitySchemes", 0, "scopes")

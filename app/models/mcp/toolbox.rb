@@ -47,7 +47,7 @@ class Mcp::Toolbox
           column_id: string_schema("Column id"),
           name: string_schema("Column name"),
           color: column_color_schema
-        }, required: [ "account_id", "board_id", "column_id" ], any_of_required: [ [ "name" ], [ "color" ] ]),
+        }, required: [ "account_id", "board_id", "column_id" ]),
         write_tool("board_create", "Create board", "Use this when the user wants a new account-wide Fizzy board. Create only active workflow columns; Fizzy automatically includes Maybe?, Not Now, and Done as system columns.", {
           account_id: string_schema("Account id or account slug"),
           name: string_schema("Board name"),
@@ -55,7 +55,7 @@ class Mcp::Toolbox
           description: rich_text_schema("Board public description"),
           columns: column_definitions_schema("Initial active workflow columns to create. Send an array of plain column name strings like [\"To Do\", \"In Progress\", \"Review\"] or objects with name/color. Do not include Maybe?, Not Now, or Done; Fizzy automatically includes those system columns."),
           initial_columns: column_definitions_schema("Alias for columns, accepted for compatibility. Send plain column name strings or objects with name/color. Do not include Maybe?, Not Now, or Done.")
-        }, required: [ "account_id" ], any_of_required: [ [ "name" ], [ "title" ] ]),
+        }, required: [ "account_id", "name" ]),
         read_tool("card_list", "List cards", "Use this when the user wants accessible cards in an account, board, or active workflow column.", {
           account_id: string_schema("Account id or account slug"),
           board_id: string_schema("Board id"),
@@ -111,18 +111,17 @@ class Mcp::Toolbox
         tool(name, title, description, properties, required: required, scopes: [ "read" ], read_only: true)
       end
 
-      def write_tool(name, title, description, properties, required: [], any_of_required: nil, destructive: false)
-        tool(name, title, description, properties, required: required, any_of_required: any_of_required, scopes: [ "read", "write" ], read_only: false, destructive: destructive)
+      def write_tool(name, title, description, properties, required: [], destructive: false)
+        tool(name, title, description, properties, required: required, scopes: [ "read", "write" ], read_only: false, destructive: destructive)
       end
 
-      def tool(name, title, description, properties, required:, any_of_required: nil, scopes:, read_only:, destructive: false)
+      def tool(name, title, description, properties, required:, scopes:, read_only:, destructive: false)
         security_schemes = [ { type: "oauth2", scopes: scopes } ]
         input_schema = {
           type: "object",
           properties: properties,
           required: required
         }
-        input_schema[:anyOf] = any_of_required.map { |keys| { required: keys } } if any_of_required.present?
 
         {
           name: name,
@@ -152,16 +151,7 @@ class Mcp::Toolbox
         {
           type: "array",
           description: description,
-          items: {
-            anyOf: [
-              { type: "string", description: "Active workflow column name" },
-              object_schema({
-                name: string_schema("Active workflow column name"),
-                title: string_schema("Alias for name, accepted for compatibility"),
-                color: column_color_schema
-              }, required: [], any_of_required: [ [ "name" ], [ "title" ] ])
-            ]
-          }
+          items: { type: "string", description: "Active workflow column name" }
         }
       end
 
