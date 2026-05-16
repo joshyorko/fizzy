@@ -14,7 +14,7 @@ class Mcp::Toolbox
     end
   end
 
-  WRITE_TOOLS = %w[ board_create column_update card_create card_update move_card comment_create ].freeze
+  WRITE_TOOLS = %w[ column_update card_create card_update move_card comment_create ].freeze
   COLUMN_COLOR_OPTIONS = Color::COLORS.map { |color| "#{color.name} (#{color.value})" }.join(", ")
 
   class << self
@@ -52,14 +52,6 @@ class Mcp::Toolbox
           name: string_schema("Column name"),
           color: column_color_schema
         }, required: [ "account_id", "board_id", "column_id" ]),
-        write_tool("board_create", "Create board", "Use this when the user wants a new account-wide Fizzy board. Create only active workflow columns; Fizzy automatically includes Maybe?, Not Now, and Done as system columns.", {
-          account_id: string_schema("Account id or account slug"),
-          name: string_schema("Board name"),
-          title: string_schema("Alias for name, accepted for compatibility"),
-          description: rich_text_schema("Board public description"),
-          columns: column_definitions_schema("Initial active workflow columns to create. Send an array of plain column name strings like [\"To Do\", \"In Progress\", \"Review\"] or objects with name/color. Do not include Maybe?, Not Now, or Done; Fizzy automatically includes those system columns."),
-          initial_columns: column_definitions_schema("Alias for columns, accepted for compatibility. Send plain column name strings or objects with name/color. Do not include Maybe?, Not Now, or Done.")
-        }, required: [ "account_id", "name" ]),
         read_tool("card_list", "List cards", "Use this when the user wants accessible cards in an account, board, or active workflow column.", {
           account_id: string_schema("Account id or account slug"),
           board_id: string_schema("Board id"),
@@ -158,14 +150,6 @@ class Mcp::Toolbox
         { type: "array", description: description, items: { type: "string" } }
       end
 
-      def column_definitions_schema(description)
-        {
-          type: "array",
-          description: description,
-          items: { type: "string", description: "Active workflow column name" }
-        }
-      end
-
       def column_color_schema
         {
           type: "string",
@@ -211,12 +195,6 @@ class Mcp::Toolbox
           })
         when "column_list"
           object_schema({
-            columns: array_of_schema(column_schema),
-            system_columns: system_columns_schema
-          })
-        when "board_create"
-          object_schema({
-            board: board_schema.merge(properties: board_schema[:properties].merge(board_description_schema[:properties])),
             columns: array_of_schema(column_schema),
             system_columns: system_columns_schema
           })
@@ -288,13 +266,6 @@ class Mcp::Toolbox
           url: string_schema("Board URL"),
           created_at: timestamp_schema("Board creation timestamp"),
           auto_postpone_period_in_days: { type: "integer", description: "Auto-postpone period in days" }
-        })
-      end
-
-      def board_description_schema
-        object_schema({
-          public_description: string_schema("Plain-text public board description"),
-          public_description_html: string_schema("HTML public board description")
         })
       end
 
@@ -474,31 +445,6 @@ class Mcp::Toolbox
 
       {
         column: column_hash(column.reload)
-      }
-    end
-  end
-
-  def board_create(arguments)
-    with_account(required_account_identifier(arguments)) do |_account, user|
-      board = nil
-
-      Board.transaction do
-        board = Board.create!(
-          name: board_name(arguments),
-          public_description: arguments["description"],
-          creator: user,
-          all_access: true
-        )
-
-        initial_column_attributes(arguments).each do |attributes|
-          board.columns.create!(attributes)
-        end
-      end
-
-      {
-        board: board_hash(board.reload).merge(board_description_hash(board)),
-        columns: board.columns.sorted.map { |column| column_hash(column) },
-        system_columns: Board.system_column_names
       }
     end
   end
@@ -720,31 +666,6 @@ class Mcp::Toolbox
       apply_steps(card, arguments["steps"]) if arguments.key?("steps")
     end
 
-    def board_name(arguments)
-      arguments["name"].presence || arguments["title"].presence || raise(Error.new("name is required", code: -32602))
-    end
-
-    def initial_column_attributes(arguments)
-      array_argument(arguments["columns"].presence || arguments["initial_columns"]).filter_map do |value|
-        column_attributes_argument(value)
-      end.reject { |attributes| Board.system_column_name?(attributes[:name]) }
-    end
-
-    def column_attributes_argument(value)
-      name, color = case value
-      when Hash
-        [ value["name"].presence || value["title"].presence, value["color"].presence ]
-      else
-        [ value, nil ]
-      end
-
-      if name.to_s.strip.present?
-        { name: name.to_s.strip }.tap do |attributes|
-          attributes[:color] = column_color_value(color) if color.present?
-        end
-      end
-    end
-
     def column_update_attributes(arguments)
       arguments.slice("name", "color").tap do |attributes|
         raise Error.new("name or color is required", code: -32602) if attributes.empty?
@@ -865,13 +786,6 @@ class Mcp::Toolbox
         url: @url_context.board_url(board, script_name: board.account.slug),
         created_at: board.created_at.utc.iso8601,
         auto_postpone_period_in_days: board.auto_postpone_period_in_days
-      }
-    end
-
-    def board_description_hash(board)
-      {
-        public_description: board.public_description.to_plain_text,
-        public_description_html: board.public_description.to_s
       }
     end
 

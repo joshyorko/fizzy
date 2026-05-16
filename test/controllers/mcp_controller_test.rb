@@ -153,14 +153,26 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_insufficient_scope_tool_result
   end
 
-  test "read token cannot create a board" do
+  test "board create is not exposed as an mcp tool" do
+    untenanted do
+      post mcp_path,
+        params: json_rpc("tools/list").to_json,
+        headers: json_headers(@write_token)
+    end
+
+    assert_response :success
+    tool_names = @response.parsed_body.dig("result", "tools").pluck("name")
+    assert_not_includes tool_names, "board_create"
+
     untenanted do
       post mcp_path,
         params: tool_call("board_create", account_id: @account_id, name: "Nope").to_json,
-        headers: json_headers(@read_token)
+        headers: json_headers(@write_token)
     end
 
-    assert_insufficient_scope_tool_result
+    assert_response :success
+    assert_equal -32602, @response.parsed_body.dig("error", "code")
+    assert_equal "Unknown tool", @response.parsed_body.dig("error", "message")
   end
 
   test "read token cannot update a column" do
@@ -186,20 +198,10 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     tools = @response.parsed_body.dig("result", "tools")
     tools.each { |tool| assert_openai_tool_schema_compatible(tool) }
-    board_create = tools.find { |tool| tool["name"] == "board_create" }
     column_update = tools.find { |tool| tool["name"] == "column_update" }
     card_update = tools.find { |tool| tool["name"] == "card_update" }
 
-    assert_equal [ "read", "write" ], board_create.dig("securitySchemes", 0, "scopes")
-    assert_equal false, board_create.dig("annotations", "readOnlyHint")
-    assert_equal false, board_create.dig("annotations", "openWorldHint")
-    assert_match(/\AUse this when/, board_create["description"])
-    assert_equal [ "account_id", "name" ], board_create.dig("inputSchema", "required")
-    assert_nil board_create.dig("inputSchema", "anyOf")
-    assert_equal "array", board_create.dig("inputSchema", "properties", "columns", "type")
-    assert_equal "string", board_create.dig("inputSchema", "properties", "columns", "items", "type")
-    assert_includes board_create.dig("inputSchema", "properties", "columns", "description"), "plain column name strings"
-    assert_includes board_create.dig("inputSchema", "properties", "columns", "description"), "Do not include"
+    assert_not tools.any? { |tool| tool["name"] == "board_create" }
     assert_equal [ "read", "write" ], column_update.dig("securitySchemes", 0, "scopes")
     assert_equal false, column_update.dig("annotations", "readOnlyHint")
     assert_equal false, column_update.dig("annotations", "destructiveHint")
@@ -220,7 +222,7 @@ class McpControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "tools list can disable advertised mcp tools from environment" do
-    with_env "FIZZY_MCP_DISABLED_TOOLS", "_board_create, card_update" do
+    with_env "FIZZY_MCP_DISABLED_TOOLS", "_card_update" do
       untenanted do
         post mcp_path, params: json_rpc("tools/list").to_json, headers: json_headers(@write_token)
       end
@@ -229,7 +231,6 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     tool_names = @response.parsed_body.dig("result", "tools").pluck("name")
 
-    assert_not_includes tool_names, "board_create"
     assert_not_includes tool_names, "card_update"
     assert_includes tool_names, "board_list"
   end
@@ -245,7 +246,6 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert tools.all? { |tool| tool["outputSchema"].present? }, "Every tool should advertise outputSchema"
 
     account_list = tools.find { |tool| tool["name"] == "account_list" }
-    board_create = tools.find { |tool| tool["name"] == "board_create" }
     column_update = tools.find { |tool| tool["name"] == "column_update" }
     fetch = tools.find { |tool| tool["name"] == "fetch" }
     search = tools.find { |tool| tool["name"] == "search" }
@@ -253,9 +253,6 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ "query" ], search.dig("inputSchema", "properties").keys
     assert_equal [ "id" ], fetch.dig("inputSchema", "properties").keys
     assert_equal "array", account_list.dig("outputSchema", "properties", "accounts", "type")
-    assert_equal "array", board_create.dig("outputSchema", "properties", "columns", "type")
-    assert_equal "array", board_create.dig("outputSchema", "properties", "system_columns", "type")
-    assert_equal "string", board_create.dig("outputSchema", "properties", "board", "properties", "public_description_html", "type")
     assert_equal "object", column_update.dig("outputSchema", "properties", "column", "type")
     assert_equal "string", column_update.dig("outputSchema", "properties", "column", "properties", "color", "type")
     assert_equal "string", fetch.dig("outputSchema", "properties", "text", "type")
@@ -343,106 +340,6 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     card = Card.order(:created_at).last
     assert_equal "MCP card", card.title
     assert_equal "Created from ChatGPT", card.description.to_plain_text
-  end
-
-  test "write token can create a board with columns and then create a card on it" do
-    assert_difference -> { Board.count }, +1 do
-      assert_difference -> { Column.count }, +2 do
-        untenanted do
-          post mcp_path,
-            params: tool_call("board_create",
-              account_id: @account_id,
-              title: "Agent Heartbeat",
-              description: "<p>Tracks agent heartbeat work.</p>",
-              columns: [ "Inbox", "Review" ]
-            ).to_json,
-            headers: json_headers(@write_token)
-        end
-      end
-    end
-
-    assert_response :success
-    payload = @response.parsed_body.dig("result", "structuredContent")
-    board = Board.find(payload.dig("board", "id"))
-
-    assert_equal "Agent Heartbeat", board.name
-    assert_equal "Tracks agent heartbeat work.", board.public_description.to_plain_text
-    assert_equal users(:david), board.creator
-    assert board.all_access?
-    assert_includes payload.dig("board", "url"), board.id
-    assert_equal [ "Inbox", "Review" ], payload["columns"].map { |column| column["name"] }
-    assert_equal [ "Maybe?", "Not Now", "Done" ], payload["system_columns"]
-
-    assert_difference -> { board.cards.count }, +1 do
-      untenanted do
-        post mcp_path,
-          params: tool_call("card_create",
-            account_id: @account_id,
-            board_id: board.id,
-            title: "Heartbeat card"
-          ).to_json,
-          headers: json_headers(@write_token)
-      end
-    end
-
-    assert_response :success
-    assert_equal "Heartbeat card", board.cards.last.title
-  end
-
-  test "board create accepts common column object input and skips system columns" do
-    assert_difference -> { Board.count }, +1 do
-      assert_difference -> { Column.count }, +3 do
-        untenanted do
-          post mcp_path,
-            params: tool_call("board_create",
-              account_id: @account_id,
-              name: "ChatGPT Board",
-              columns: [
-                { name: "To Do", color: "Gray" },
-                { title: "In Progress", color: "var(--color-card-5)" },
-                "Review",
-                "Done",
-                "Not Now",
-                "Maybe"
-              ]
-            ).to_json,
-            headers: json_headers(@write_token)
-        end
-      end
-    end
-
-    assert_response :success
-    payload = @response.parsed_body.dig("result", "structuredContent")
-    board = Board.find(payload.dig("board", "id"))
-
-    assert_equal [ "To Do", "In Progress", "Review" ], board.columns.sorted.pluck(:name)
-    assert_equal [ "To Do", "In Progress", "Review" ], payload["columns"].map { |column| column["name"] }
-    assert_equal [ "var(--color-card-1)", "var(--color-card-5)", "var(--color-card-default)" ], payload["columns"].map { |column| column["color"] }
-    assert_equal [ "Maybe?", "Not Now", "Done" ], payload["system_columns"]
-  end
-
-  test "board create keeps one requested workflow column separate from system columns" do
-    assert_difference -> { Board.count }, +1 do
-      assert_difference -> { Column.count }, +1 do
-        untenanted do
-          post mcp_path,
-            params: tool_call("board_create",
-              account_id: @account_id,
-              name: "Sauce Board",
-              columns: [ "Maybe?", "AwesomeSauce", "Not Now", "Done" ]
-            ).to_json,
-            headers: json_headers(@write_token)
-        end
-      end
-    end
-
-    assert_response :success
-    payload = @response.parsed_body.dig("result", "structuredContent")
-    board = Board.find(payload.dig("board", "id"))
-
-    assert_equal [ "AwesomeSauce" ], board.columns.sorted.pluck(:name)
-    assert_equal [ "AwesomeSauce" ], payload["columns"].map { |column| column["name"] }
-    assert_equal [ "Maybe?", "Not Now", "Done" ], payload["system_columns"]
   end
 
   test "write token can create a golden ticket card with html tags and steps" do

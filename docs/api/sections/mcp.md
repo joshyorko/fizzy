@@ -8,7 +8,6 @@ Read tools require the `read` scope. Mutating tools require `read write`.
 
 Mutating MCP tools currently include:
 
-- `board_create`
 - `column_update`
 - `card_create`
 - `card_update`
@@ -28,33 +27,6 @@ Card descriptions and comment bodies are Action Text rich text fields. Send HTML
 ```
 
 Plain text is accepted, but Markdown is not the rich text format. HTML is sanitized before storage.
-
-## Board Creation
-
-MCP `board_create` creates a board in the authenticated account and can optionally create initial columns:
-
-```json
-{
-  "account_id": "1234567",
-  "name": "Agent Heartbeat",
-  "description": "<p>Tracks agent heartbeat work.</p>",
-  "columns": ["Inbox", "In progress", "Done"]
-}
-```
-
-`title` is accepted as an alias for `name`, and `initial_columns` is accepted as an alias for `columns`. The response includes the board, its URL, and the created columns. The returned board id can be used immediately with `card_create`.
-
-Initial column entries may also be objects with a `name` and optional `color`.
-
-```json
-{
-  "columns": [
-    { "name": "To Do", "color": "Gray" },
-    { "name": "In Progress", "color": "Aqua" },
-    { "name": "Review", "color": "Violet" }
-  ]
-}
-```
 
 ## Column Colors
 
