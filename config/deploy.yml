@@ -1,6 +1,32 @@
+<%
+require "dotenv"
+require "uri"
+
+Dotenv.load(".env.kamal.local") if File.exist?(".env.kamal.local")
+
+kamal_server_alias = ENV.fetch("KAMAL_SERVER_ALIAS")
+kamal_public_host = ENV.fetch("KAMAL_PUBLIC_HOST")
+kamal_ssh_user = ENV.fetch("KAMAL_SSH_USER")
+kamal_storage_path = ENV.fetch("KAMAL_STORAGE_PATH")
+kamal_mailer_from_address = ENV.fetch("KAMAL_MAILER_FROM_ADDRESS")
+s3_endpoint = ENV.fetch("S3_ENDPOINT")
+s3_bucket = ENV.fetch("S3_BUCKET")
+s3_region = ENV.fetch("S3_REGION", "auto")
+s3_force_path_style = ENV.fetch("S3_FORCE_PATH_STYLE", "false")
+s3_bucket_setup_enabled = ENV.fetch("S3_BUCKET_SETUP_ENABLED", "false")
+fizzy_mcp_disabled_tools = ENV.fetch("FIZZY_MCP_DISABLED_TOOLS", "")
+s3_csp_sources = [ s3_endpoint ]
+
+unless s3_force_path_style == "true"
+  s3_endpoint_uri = URI.parse(s3_endpoint)
+  if !s3_endpoint_uri.scheme.to_s.empty? && !s3_endpoint_uri.host.to_s.empty?
+    s3_csp_sources << "#{s3_endpoint_uri.scheme}://#{s3_bucket}.#{s3_endpoint_uri.host}"
+  end
+end
+%>
 # Name of this app
 service: fizzy
-image: fizzy
+image: joshyorko/fizzy
 
 
 #-- About your deployment --#
@@ -8,16 +34,22 @@ image: fizzy
 # Where to deploy fizzy
 servers:
   web:
-    - fizzy.example.com  # Set your server name here
+    - <%= kamal_server_alias %>
 
 # How you connect to your server
 ssh:
-  user: root  # If you use a different username to SSH to your server, specify it here
+  user: <%= kamal_ssh_user %>
 
-# Automatic SSL
+# Cloudflare Tunnel handles public TLS; Kamal proxy serves local origin HTTP
 proxy:
-  ssl: true                # Set this to false if you *don't* want SSL
-  host: fizzy.example.com  # Set your server name here to use automatic SSL
+  host: <%= kamal_public_host %>
+  app_port: 80
+  ssl_redirect: true
+  forward_headers: true
+  ssl: false
+  run:
+    bind_ips:
+      - 127.0.0.1
 
 # Your application configuration (secrets come from .kamal/secrets).
 env:
@@ -27,19 +59,49 @@ env:
     - VAPID_PRIVATE_KEY
     - SMTP_USERNAME
     - SMTP_PASSWORD
+    - S3_ACCESS_KEY_ID
+    - S3_SECRET_ACCESS_KEY
+    - AWS_ACCESS_KEY_ID:S3_ACCESS_KEY_ID
+    - AWS_SECRET_ACCESS_KEY:S3_SECRET_ACCESS_KEY
   clear:
-    BASE_URL: https://fizzy.example.com # The public URL of your Fizzy instance
-    MAILER_FROM_ADDRESS: support@example.com # The email "from" address that Fizzy sends email from
-    SMTP_ADDRESS: mail.example.com # The SMTP server you'll use to send email
+    BASE_URL: https://<%= kamal_public_host %>
+    ASSUME_SSL: true
+    FORCE_SSL: true
+    MAILER_FROM_ADDRESS: <%= kamal_mailer_from_address %>
+    SMTP_ADDRESS: smtp.gmail.com
     MULTI_TENANT: false # Set to true to allow multiple accounts to sign up
     SOLID_QUEUE_IN_PUMA: true # Run background jobs in the app container
+    ACTIVE_STORAGE_SERVICE: s3
+    S3_ENDPOINT: <%= s3_endpoint %>
+    CSP_CONNECT_SRC: <%= s3_csp_sources.uniq.join(" ") %>
+    CSP_IMG_SRC: <%= s3_csp_sources.uniq.join(" ") %>
+    S3_REGION: <%= s3_region %>
+    S3_FORCE_PATH_STYLE: <%= s3_force_path_style %>
+    S3_BUCKET_SETUP_ENABLED: <%= s3_bucket_setup_enabled %>
+    FIZZY_MCP_DISABLED_TOOLS: <%= fizzy_mcp_disabled_tools %>
+    S3_REQUEST_CHECKSUM_CALCULATION: <%= ENV.fetch("S3_REQUEST_CHECKSUM_CALCULATION", "when_required") %>
+    S3_RESPONSE_CHECKSUM_VALIDATION: <%= ENV.fetch("S3_RESPONSE_CHECKSUM_VALIDATION", "when_required") %>
+    S3_BUCKET: <%= s3_bucket %>
+    AWS_REGION: <%= s3_region %>
+
+
+accessories:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    host: <%= kamal_server_alias %>
+    cmd: tunnel --no-autoupdate run
+    env:
+      secret:
+        - TUNNEL_TOKEN:CLOUDFLARED_TOKEN
 
 
 #-- General configuration --#
 
-# Use a local registry to deploy
 registry:
-  server: localhost:5555
+  server: ghcr.io
+  username: joshyorko
+  password:
+    - KAMAL_REGISTRY_PASSWORD
 
 # Handy aliases for interacting with your deployment. For eaxmple: `bin/kamal console` will connect to a
 # Rails console in production.
@@ -49,16 +111,15 @@ aliases:
   logs: app logs -f
   dbc: app exec --interactive --reuse "bin/rails dbconsole --include-password"
 
-# Use a persistent storage volume for sqlite database files and local Active Storage files.
-# Recommended to change this to a mounted volume path that is backed up off server.
+# Use a persistent host path for sqlite database files and local Active Storage files.
 volumes:
-  - "fizzy_storage:/rails/storage"
+  - "<%= kamal_storage_path %>:/rails/storage"
 
 # Bridge fingerprinted assets, like JS and CSS, between versions to avoid
 # hitting 404 on in-flight requests. Combines all files from new and old
 # version inside the asset_path.
 asset_path: /rails/public/assets
 
-# Configure the image builder.
+# Keep builder config available for manual fallback deploys.
 builder:
   arch: amd64

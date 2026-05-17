@@ -101,14 +101,19 @@ To use the included `s3` service, set:
 - `ACTIVE_STORAGE_SERVICE=s3`
 - `S3_ACCESS_KEY_ID`
 - `S3_BUCKET` (defaults to `fizzy-#{Rails.env}-activestorage`)
-- `S3_REGION` (defaults to `us-east-1`)
+- `S3_REGION` (defaults to `auto` in the included Kamal config)
 - `S3_SECRET_ACCESS_KEY`
 - `CSP_CONNECT_SRC`
 
 Optional for S3-compatible endpoints:
 
 - `S3_ENDPOINT`
-- `S3_FORCE_PATH_STYLE=true`
+- `S3_FORCE_PATH_STYLE` (`false` for Cloudflare R2, `true` for MinIO-style path addressing)
+- `S3_BUCKET_SETUP_ENABLED` (`false` when the bucket is managed outside the app)
 - `S3_REQUEST_CHECKSUM_CALCULATION` (defaults to `when_supported`)
 - `S3_RESPONSE_CHECKSUM_VALIDATION` (defaults to `when_supported`)
 
+For Cloudflare R2 specifically, keep the bucket private, use presigned URLs,
+and make sure `CSP_CONNECT_SRC` covers the real presigned upload host. With
+`S3_FORCE_PATH_STYLE=false`, that host includes the bucket subdomain rather than
+just the bare account endpoint.
