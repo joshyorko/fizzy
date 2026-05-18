@@ -14,7 +14,6 @@ s3_bucket = ENV.fetch("S3_BUCKET")
 s3_region = ENV.fetch("S3_REGION", "auto")
 s3_force_path_style = ENV.fetch("S3_FORCE_PATH_STYLE", "false")
 s3_bucket_setup_enabled = ENV.fetch("S3_BUCKET_SETUP_ENABLED", "false")
-fizzy_mcp_disabled_tools = ENV.fetch("FIZZY_MCP_DISABLED_TOOLS", "")
 s3_csp_sources = [ s3_endpoint ]
 
 unless s3_force_path_style == "true"
@@ -78,7 +77,6 @@ env:
     S3_REGION: <%= s3_region %>
     S3_FORCE_PATH_STYLE: <%= s3_force_path_style %>
     S3_BUCKET_SETUP_ENABLED: <%= s3_bucket_setup_enabled %>
-    FIZZY_MCP_DISABLED_TOOLS: <%= fizzy_mcp_disabled_tools %>
     S3_REQUEST_CHECKSUM_CALCULATION: <%= ENV.fetch("S3_REQUEST_CHECKSUM_CALCULATION", "when_required") %>
     S3_RESPONSE_CHECKSUM_VALIDATION: <%= ENV.fetch("S3_RESPONSE_CHECKSUM_VALIDATION", "when_required") %>
     S3_BUCKET: <%= s3_bucket %>
