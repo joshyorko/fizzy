@@ -219,6 +219,7 @@ jobs:
           set -euo pipefail
           export DOCKER_CONFIG="$RUNNER_TEMP/docker-ghcr"
           mkdir -p "$DOCKER_CONFIG"
+          printf 'DOCKER_CONFIG=%s\n' "$DOCKER_CONFIG" >> "$GITHUB_ENV"
           printf '%s' "$KAMAL_REGISTRY_PASSWORD" | docker login ghcr.io -u joshyorko --password-stdin
 
       - name: Wait for published image tag
