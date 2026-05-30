@@ -1,4 +1,13 @@
 module SessionTestHelper
+  FIXTURE_ACCESS_TOKENS = {
+    jasons_api_token: "018cf1425682700098f24f0799e3fe20",
+    davids_api_token: "x18cf1425682700098f24f0799e3fe20"
+  }.freeze
+
+  def fixture_access_token(name)
+    FIXTURE_ACCESS_TOKENS.fetch(name.to_sym)
+  end
+
   def parsed_cookies
     ActionDispatch::Cookies::CookieJar.build(request, cookies.to_hash)
   end

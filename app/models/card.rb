@@ -67,6 +67,22 @@ class Card < ApplicationRecord
     title.present? || description.present?
   end
 
+  def board_column_name
+    if closed?
+      Board.system_column_name_for("done")
+    elsif postponed?
+      Board.system_column_name_for("not now")
+    elsif column.present?
+      column.name
+    else
+      Board.system_column_name_for("maybe")
+    end
+  end
+
+  def active_workflow_column
+    column if active?
+  end
+
   private
     def set_default_title
       self.title = "Untitled" if title.blank?

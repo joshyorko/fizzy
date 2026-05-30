@@ -149,7 +149,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     sign_in_as :jason
     sign_out
 
-    bearer = { "HTTP_AUTHORIZATION" => "Bearer #{identity_access_tokens(:jasons_api_token).token}" }
+    bearer = { "HTTP_AUTHORIZATION" => "Bearer #{fixture_access_token(:jasons_api_token)}" }
     get user_path(users(:jason)), env: bearer
 
     assert_response :unauthorized
@@ -159,7 +159,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     sign_in_as :jason
     sign_out
 
-    bearer = { "HTTP_AUTHORIZATION" => "Bearer #{identity_access_tokens(:jasons_api_token).token}" }
+    bearer = { "HTTP_AUTHORIZATION" => "Bearer #{fixture_access_token(:jasons_api_token)}" }
     get user_path(users(:jason)), env: bearer, as: :json
 
     assert_response :success
