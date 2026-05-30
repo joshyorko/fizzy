@@ -94,6 +94,7 @@
   .icon--menu { --svg: url("menu.svg "); }
   .icon--menu-dots-horizontal { --svg: url("menu-dots-horizontal.svg "); }
   .icon--menu-dots-vertical { --svg: url("menu-dots-vertical.svg "); }
+  .icon--microphone { --svg: url("microphone.svg "); }
   .icon--minus { --svg: url("minus.svg "); }
   .icon--monitor { --svg: url("monitor.svg "); }
   .icon--moon { --svg: url("moon.svg "); }

@@ -235,4 +235,24 @@
       }
     }
   }
+
+  .voice-note-button {
+    --btn-background: var(--color-ink-lightest);
+    --btn-border-color: var(--color-ink-lighter);
+  }
+
+  .voice-note-button[hidden] {
+    display: none;
+  }
+
+  .voice-note-button--recording {
+    --btn-background: var(--color-negative);
+    --btn-border-color: var(--color-negative);
+    --btn-color: var(--color-ink-inverted);
+  }
+
+  .voice-note-button__duration {
+    font-variant-numeric: tabular-nums;
+    min-inline-size: 4ch;
+  }
 }

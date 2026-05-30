@@ -14,4 +14,21 @@ module RichTextHelper
   def general_prompts(board)
     safe_join([ mentions_prompt(board), cards_prompt ])
   end
+
+  def voice_note_button
+    button_tag type: "button",
+      class: "voice-note-button btn txt-small",
+      title: "Record voice note",
+      aria: { pressed: "false" },
+      data: {
+        voice_note_target: "button",
+        action: "pointerdown->voice-note#preserveEditorFocus click->voice-note#toggle"
+      },
+      hidden: true,
+      disabled: true do
+        icon_tag("microphone") +
+          tag.span("Record voice note", data: { voice_note_target: "label" }) +
+          tag.span("", class: "voice-note-button__duration", data: { voice_note_target: "duration" })
+      end
+  end
 end
