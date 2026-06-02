@@ -45,7 +45,7 @@ jobs:
       packages: write
     env:
       VERSION_INPUT: ${{ needs.prepare.outputs.short_sha }}
-      KAMAL_REGISTRY_PASSWORD: ${{ secrets.KAMAL_REGISTRY_PASSWORD || github.token }}
+      KAMAL_REGISTRY_PASSWORD: ${{ github.token }}
       KAMAL_SERVER_ALIAS: ${{ secrets.KAMAL_SERVER_ALIAS || vars.KAMAL_SERVER_ALIAS }}
       KAMAL_PUBLIC_HOST: ${{ secrets.KAMAL_PUBLIC_HOST || vars.KAMAL_PUBLIC_HOST }}
       KAMAL_SSH_USER: ${{ secrets.KAMAL_SSH_USER || vars.KAMAL_SSH_USER }}
