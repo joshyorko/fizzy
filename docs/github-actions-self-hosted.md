@@ -16,6 +16,17 @@ Kamal itself runs inside the official `ghcr.io/basecamp/kamal:v2.10.1` container
 - Set the fork default branch to `self-hosted` once the repo-side workflow is in place.
 - The deploy-related workflows are `workflow_dispatch` only. Nothing auto-builds or auto-deploys on push.
 
+## CI profile
+
+`.github/workflows/ci-saas.yml` is the profile-aware CI wrapper despite the filename.
+
+- `FIZZY_EDITION=saas` runs SaaS and OSS tests.
+- `FIZZY_EDITION=oss` or `FIZZY_EDITION=self-hosted` runs the OSS profile.
+- If `FIZZY_EDITION` is unset, `basecamp/fizzy` defaults to SaaS and downstream forks default to OSS.
+- Pull requests targeting `self-hosted` default to OSS.
+
+The sync workflow first tries to create a real merge candidate from `self-hosted` plus `basecamp/main`. If that merge conflicts, it leaves a conflict-alert PR whose checks may reflect upstream/SaaS state instead of the self-hosted profile. Resolve those conflicts from a branch based on `self-hosted`, then rerun the OSS/self-hosted profile.
+
 ## Repo secrets
 
 Sync app secrets from `.env.kamal.local` into the fork with:

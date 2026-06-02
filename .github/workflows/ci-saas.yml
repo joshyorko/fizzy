@@ -1,6 +1,8 @@
 name: CI (Auto)
 
 on:
+  push:
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -9,6 +11,7 @@ permissions:
 jobs:
   detect_edition:
     name: Detect edition
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     outputs:
       edition: ${{ steps.detect.outputs.edition }}
@@ -19,16 +22,20 @@ jobs:
         shell: bash
         env:
           FIZZY_EDITION: ${{ vars.FIZZY_EDITION || '' }}
+          REPOSITORY: ${{ github.repository }}
           REF_NAME: ${{ github.ref_name }}
+          BASE_REF: ${{ github.base_ref || '' }}
         run: |
           set -euo pipefail
 
           edition="$(printf '%s' "${FIZZY_EDITION:-}" | tr '[:upper:]' '[:lower:]')"
           if [ -z "$edition" ]; then
-            if [ "$REF_NAME" = "self-hosted" ]; then
+            if [ "$BASE_REF" = "self-hosted" ] || [ "$REF_NAME" = "self-hosted" ]; then
               edition="oss"
-            else
+            elif [ "$REPOSITORY" = "basecamp/fizzy" ]; then
               edition="saas"
+            else
+              edition="oss"
             fi
           fi
 
