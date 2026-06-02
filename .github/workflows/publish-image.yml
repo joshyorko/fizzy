@@ -11,6 +11,9 @@ env:
   IMAGE_DESCRIPTION: Fizzy is Kanban as it should be. Not as it has been.
   SOURCE_URL: https://github.com/${{ github.repository }}
 
+permissions:
+  contents: read
+
 jobs:
   prepare:
     name: Resolve release tag
@@ -231,4 +234,4 @@ jobs:
     with:
       action: deploy
       version: ${{ needs.prepare.outputs.short_sha }}
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit] -- deploy workflow consumes the repo deploy secret set
