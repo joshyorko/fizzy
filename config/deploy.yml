@@ -15,6 +15,8 @@ s3_region = ENV.fetch("S3_REGION", "auto")
 s3_force_path_style = ENV.fetch("S3_FORCE_PATH_STYLE", "false")
 s3_bucket_setup_enabled = ENV.fetch("S3_BUCKET_SETUP_ENABLED", "false")
 s3_csp_sources = [ s3_endpoint ]
+source_url = ENV.fetch("SOURCE_URL", "https://github.com/joshyorko/fizzy")
+image_description = ENV.fetch("IMAGE_DESCRIPTION", "Fizzy is Kanban as it should be. Not as it has been.")
 
 unless s3_force_path_style == "true"
   s3_endpoint_uri = URI.parse(s3_endpoint)
@@ -121,3 +123,6 @@ asset_path: /rails/public/assets
 # Keep builder config available for manual fallback deploys.
 builder:
   arch: amd64
+  args:
+    OCI_SOURCE: <%= source_url %>
+    OCI_DESCRIPTION: <%= image_description %>
