@@ -231,6 +231,9 @@ jobs:
       - prepare
       - manifest
     uses: ./.github/workflows/deploy-self-hosted.yml
+    permissions:
+      contents: read
+      packages: read
     with:
       action: deploy
       version: ${{ needs.prepare.outputs.short_sha }}
