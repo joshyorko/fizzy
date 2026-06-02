@@ -99,6 +99,7 @@ jobs:
             latest=false
             suffix=-${{ matrix.arch }}
           labels: |
+            service=fizzy
             org.opencontainers.image.source=${{ env.SOURCE_URL }}
 
       - name: Build and push (${{ matrix.platform }})
