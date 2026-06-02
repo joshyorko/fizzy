@@ -123,6 +123,9 @@ asset_path: /rails/public/assets
 # Keep builder config available for manual fallback deploys.
 builder:
   arch: amd64
+  cache:
+    type: gha
+    options: mode=max,scope=fizzy-self-hosted-amd64
   args:
     OCI_SOURCE: <%= source_url %>
     OCI_DESCRIPTION: <%= image_description %>
