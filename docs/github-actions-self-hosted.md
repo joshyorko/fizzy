@@ -11,6 +11,8 @@ The runner host only needs:
 
 The image build runs on GitHub's hosted `ubuntu-latest` runner, where `bundle exec kamal build push` builds the amd64 image and pushes it to GHCR. The trusted self-hosted runner is deploy-only: it uses Kamal with `--skip-push` to deploy the already-published image to the amd64 target host.
 
+The hosted build sets `KAMAL_SKIP_SSH_CHECK=1` because it only needs Docker and GHCR access. SSH preflight still runs during deploy and diagnostics on the trusted runner.
+
 ## Branch model
 
 - Keep self-hosted deployment work on the `self-hosted` branch.

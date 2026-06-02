@@ -1,6 +1,11 @@
 #!/bin/sh
 set -eu
 
+if [ "${KAMAL_SKIP_SSH_CHECK:-}" = "1" ]; then
+  echo "pre-connect: SSH check skipped"
+  exit 0
+fi
+
 resolve_ssh_user() {
   ruby <<'RUBY'
 require "erb"

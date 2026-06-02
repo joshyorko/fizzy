@@ -53,6 +53,7 @@ jobs:
       KAMAL_MAILER_FROM_ADDRESS: ${{ secrets.KAMAL_MAILER_FROM_ADDRESS || vars.KAMAL_MAILER_FROM_ADDRESS }}
       S3_ENDPOINT: ${{ secrets.S3_ENDPOINT || vars.S3_ENDPOINT }}
       S3_BUCKET: ${{ secrets.S3_BUCKET || vars.S3_BUCKET }}
+      KAMAL_SKIP_SSH_CHECK: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
