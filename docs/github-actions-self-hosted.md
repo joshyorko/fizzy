@@ -1,15 +1,15 @@
-# GitHub Actions on `pi5-01`
+# GitHub Actions Self-Hosted Deploy
 
-This branch deploys Fizzy from a self-hosted GitHub Actions runner on `pi5-01`.
+This branch deploys Fizzy from a trusted self-hosted GitHub Actions runner.
 
 The runner host only needs:
 
 - Docker
-- SSH access to `homelab-rcc`
+- SSH access to the deploy target
 - the GitHub Actions runner service
 - Ruby through `rbenv`
 
-The image build runs on GitHub's hosted `ubuntu-latest` runner, where `bundle exec kamal build push` builds the amd64 image and pushes it to GHCR. The `pi5-01` runner is deploy-only: it uses Kamal with `--skip-push` to deploy the already-published image to the amd64 target host.
+The image build runs on GitHub's hosted `ubuntu-latest` runner, where `bundle exec kamal build push` builds the amd64 image and pushes it to GHCR. The trusted self-hosted runner is deploy-only: it uses Kamal with `--skip-push` to deploy the already-published image to the amd64 target host.
 
 ## Branch model
 
@@ -52,22 +52,9 @@ If `config/master.key` exists locally, the script also syncs `RAILS_MASTER_KEY`.
 
 ## Runner install
 
-Install and register the runner on `pi5-01` as a system service with:
+Install and register the trusted runner as a system service with the repo script that matches the current deployment host.
 
-```bash
-script/install-self-hosted-runner-on-pi5-01.sh joshyorko/fizzy
-```
-
-What it does:
-
-- creates a dedicated SSH key on `pi5-01` for `homelab-rcc`
-- adds that public key to `kdlocpanda@homelab-rcc`
-- adds a `homelab-rcc` host entry on `pi5-01`
-- downloads the GitHub Actions runner for Linux ARM64
-- registers it to the repo with labels `pi5-01`, `kamal`, `fizzy`
-- installs and starts it as a system service
-
-The workflow expects `pi5-01` to be able to SSH to `homelab-rcc` without prompting.
+The workflow expects the trusted runner to be able to SSH to the deploy target without prompting.
 
 ## Deploy workflow
 
@@ -102,7 +89,7 @@ Diagnostics dispatch supports:
 The diagnostics workflow:
 
 - writes `.env.kamal.local` and `config/master.key` from GitHub secrets
-- verifies `pi5-01` can SSH to `homelab-rcc`
+- verifies the trusted runner can SSH to the deploy target
 - runs the selected Kamal read-only diagnostic command set on the self-hosted runner
 - fails the workflow if any selected Kamal check fails
 

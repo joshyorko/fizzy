@@ -163,7 +163,7 @@ jobs:
 
           chmod 600 .env.kamal.local
 
-      - name: Verify runner can SSH to homelab-rcc
+      - name: Verify runner can SSH to deploy target
         shell: bash
         env:
           KAMAL_SERVER_ALIAS: ${{ secrets.KAMAL_SERVER_ALIAS || vars.KAMAL_SERVER_ALIAS }}
