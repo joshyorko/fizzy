@@ -60,14 +60,26 @@ class Oauth::TokensControllerTest < ActionDispatch::IntegrationTest
     assert @authorization_code.reload.used_at.present?
   end
 
+  test "token exchange accepts resource parameter with trailing slash" do
+    assert_difference -> { identities(:david).access_tokens.count }, +1 do
+      untenanted do
+        post oauth_token_path, params: token_params(resource: "#{mcp_url(script_name: nil)}/")
+      end
+    end
+
+    assert_response :success
+    assert_equal mcp_url(script_name: nil), identities(:david).access_tokens.last.resource
+    assert @authorization_code.reload.used_at.present?
+  end
+
   private
-    def token_params(code_verifier: @verifier)
+    def token_params(code_verifier: @verifier, resource: @authorization_code.resource)
       {
         grant_type: "authorization_code",
         client_id: @client.client_id,
         code: @authorization_code.code,
         redirect_uri: @authorization_code.redirect_uri,
-        resource: @authorization_code.resource,
+        resource: resource,
         code_verifier: code_verifier
       }
     end

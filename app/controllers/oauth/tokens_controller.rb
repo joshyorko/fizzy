@@ -38,7 +38,7 @@ class Oauth::TokensController < Oauth::BaseController
         params[:grant_type] == "authorization_code" &&
         params[:client_id] == @authorization_code.client.client_id &&
         params[:redirect_uri] == @authorization_code.redirect_uri &&
-        token_resource == @authorization_code.resource &&
+        canonical_mcp_resource_url(token_resource) == @authorization_code.resource &&
         @authorization_code.verifies_pkce?(params[:code_verifier])
     end
 

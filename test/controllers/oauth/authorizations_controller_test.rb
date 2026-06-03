@@ -49,6 +49,18 @@ class Oauth::AuthorizationsControllerTest < ActionDispatch::IntegrationTest
     assert_equal mcp_url(script_name: nil), authorization_code.resource
   end
 
+  test "consent accepts mcp resource with trailing slash" do
+    sign_in_as :david
+
+    assert_difference -> { Oauth::AuthorizationCode.count }, +1 do
+      untenanted do
+        post oauth_authorize_path, params: authorization_params(resource: "#{mcp_url(script_name: nil)}/")
+      end
+    end
+
+    assert_equal mcp_url(script_name: nil), Oauth::AuthorizationCode.last.resource
+  end
+
   test "authorize rejects unknown scopes" do
     sign_in_as :david
 

@@ -30,7 +30,7 @@ class Oauth::AuthorizationsController < Oauth::BaseController
       @requested_scope = params[:scope].presence || @client.scope
       @scope = Oauth::Scope.normalize(@requested_scope) if Oauth::Scope.valid?(@requested_scope)
       @state = params[:state]
-      @resource = params[:resource].presence || mcp_resource_url
+      @resource = canonical_mcp_resource_url(params[:resource].presence || mcp_resource_url)
       @code_challenge = params[:code_challenge].to_s
       @code_challenge_method = params[:code_challenge_method].to_s
 
@@ -45,7 +45,7 @@ class Oauth::AuthorizationsController < Oauth::BaseController
       params[:response_type] == "code" &&
         @client.redirect_uri_allowed?(@redirect_uri) &&
         requested_scope_allowed? &&
-        @resource == mcp_resource_url &&
+        mcp_resource_url?(@resource) &&
         @code_challenge.present? &&
         @code_challenge_method == "S256"
     end
