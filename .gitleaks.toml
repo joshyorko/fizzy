@@ -6,8 +6,18 @@ paths = [
   '''log''',
   '''tmp''',
   '''.*\.yml\.enc''',
+  '''^\.env\.kamal\.local$''',
   '''docs/''',
   '''test/''',
+]
+
+regexes = [
+  '''\$\{\{\s*secrets\.[A-Z0-9_]+\s*\|\|\s*vars\.[A-Z0-9_]+\s*\}\}''',
+]
+
+stopwords = [
+  "secrets.S3_BUCKET",
+  "vars.S3_BUCKET",
 ]
 
 [[rules]]

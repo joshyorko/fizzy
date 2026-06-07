@@ -3,8 +3,18 @@ Rails.application.routes.draw do
 
   get "/.well-known/oauth-protected-resource", to: "oauth/metadata#protected_resource",
     as: :oauth_protected_resource, defaults: { format: :json }, format: false
+  get "/.well-known/oauth-protected-resource/mcp", to: "oauth/metadata#protected_resource",
+    defaults: { format: :json }, format: false
+  get "/mcp/.well-known/oauth-protected-resource", to: "oauth/metadata#protected_resource",
+    defaults: { format: :json }, format: false
   get "/.well-known/oauth-authorization-server", to: "oauth/metadata#authorization_server",
     as: :oauth_authorization_server, defaults: { format: :json }, format: false
+  get "/.well-known/openid-configuration", to: "oauth/metadata#authorization_server",
+    defaults: { format: :json }, format: false
+  get "/.well-known/oauth-authorization-server/mcp", to: "oauth/metadata#authorization_server",
+    defaults: { format: :json }, format: false
+  get "/mcp/.well-known/oauth-authorization-server", to: "oauth/metadata#authorization_server",
+    defaults: { format: :json }, format: false
   get "/.well-known/mcp.json", to: "mcp#discovery",
     as: :mcp_discovery, defaults: { format: :json }, format: false
 
