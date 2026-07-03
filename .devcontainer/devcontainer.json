@@ -5,11 +5,14 @@
   "dockerComposeFile": "compose.yaml",
   "service": "rails-app",
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "mounts": [
+    "source=${localEnv:HOME}/.ssh/config,target=/tmp/fizzy-host-ssh-config,type=bind,readonly"
+  ],
 
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/rails/devcontainer/features/activestorage": {},
-    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": { "moby": false },
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1.10.0": { "moby": false },
     "ghcr.io/rails/devcontainer/features/sqlite3": {}
   },
 
@@ -29,5 +32,6 @@
     }
   },
 
+  "postStartCommand": "sh .devcontainer/setup-kamal-ssh.sh",
   "postCreateCommand": "bin/setup"
 }
