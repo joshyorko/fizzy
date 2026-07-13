@@ -154,6 +154,9 @@ R2 buckets should be created ahead of time and kept private. Fizzy should use
 presigned URLs for upload and download access instead of trying to create the
 bucket at boot.
 
+If your storage provider is on a different site than your Fizzy instance and doesn't return CORS headers on presigned URL responses, inline images may fail to load.
+In that case, set `SERVICE_WORKER_CORS_ENABLED=false` so the service worker fetches uploaded files without CORS mode.
+
 #### Multi-tenant mode
 
 By default, when you run the Fizzy Docker image you'll be limited to creating a single account (although that account can have as many users as you like).

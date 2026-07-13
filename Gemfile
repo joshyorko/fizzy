@@ -14,9 +14,9 @@ gem "turbo-rails", github: "hotwired/turbo-rails", branch: "offline-cache"
 gem "bootsnap", require: false
 gem "kamal", require: false
 gem "puma", "~> 7.2", ">= 7.2.1"
-gem "solid_cable", ">= 3.0"
+gem "solid_cable", github: "rails/solid_cable"
 gem "solid_cache", "~> 1.0"
-gem "solid_queue", "~> 1.4"
+gem "solid_queue", github: "rails/solid_queue"
 gem "sqlite3", ">= 2.0"
 gem "thruster", require: false
 gem "trilogy", "~> 2.11"
@@ -27,7 +27,7 @@ gem "geared_pagination", "~> 1.2"
 gem "rqrcode"
 gem "rouge"
 gem "jbuilder"
-gem "lexxy", "0.9.14.beta"
+gem "lexxy", "0.9.23"
 gem "image_processing", "~> 1.14"
 gem "platform_agent"
 gem "aws-sdk-s3", require: false
