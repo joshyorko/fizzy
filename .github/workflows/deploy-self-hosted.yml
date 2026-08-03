@@ -37,6 +37,7 @@ concurrency:
 
 jobs:
   prepare:
+    if: github.ref_name == 'self-hosted'
     runs-on: ubuntu-latest
     outputs:
       action: ${{ steps.vars.outputs.action }}

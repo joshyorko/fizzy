@@ -2,6 +2,8 @@ name: Checks
 
 on:
   pull_request:
+    branches:
+      - self-hosted
   workflow_dispatch:
 
 permissions:
@@ -10,6 +12,7 @@ permissions:
 jobs:
   gemfile-drift:
     name: Gemfile drift
+    if: github.event_name != 'workflow_dispatch' || github.ref_name == 'self-hosted'
     runs-on: ubuntu-latest
 
     steps:
@@ -26,6 +29,7 @@ jobs:
 
   security:
     name: Security
+    if: github.event_name != 'workflow_dispatch' || github.ref_name == 'self-hosted'
     runs-on: ubuntu-latest
 
     steps:
@@ -48,6 +52,7 @@ jobs:
 
   lint:
     name: Lint
+    if: github.event_name != 'workflow_dispatch' || github.ref_name == 'self-hosted'
     runs-on: ubuntu-latest
 
     steps:
@@ -64,6 +69,7 @@ jobs:
 
   zizmor:
     name: GitHub Actions audit
+    if: github.event_name != 'workflow_dispatch' || github.ref_name == 'self-hosted'
     runs-on: ubuntu-latest
 
     steps:

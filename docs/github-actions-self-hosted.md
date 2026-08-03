@@ -17,6 +17,9 @@ The hosted build sets `KAMAL_SKIP_SSH_CHECK=1` because it only needs Docker and 
 
 - Keep self-hosted deployment work on the `self-hosted` branch.
 - Set the fork default branch to `self-hosted` once the repo-side workflow is in place.
+- Automatic push workflows run only for `self-hosted`.
+- Pull request workflows run only for pull requests targeting `self-hosted`.
+- Manual publish, deploy, diagnostics, and CI jobs run only when the selected ref is `self-hosted`.
 - The deploy-related workflows are `workflow_dispatch` only. Nothing auto-builds or auto-deploys on push.
 
 ## CI profile

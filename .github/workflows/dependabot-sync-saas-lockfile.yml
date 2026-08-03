@@ -3,7 +3,7 @@ name: Sync Gemfile.saas.lock
 on:
   push:
     branches:
-      - "dependabot/bundler/**"
+      - self-hosted
     paths:
       - Gemfile.lock
   workflow_dispatch:
@@ -13,6 +13,7 @@ permissions:
 
 jobs:
   sync:
+    if: github.event_name != 'workflow_dispatch' || github.ref_name == 'self-hosted'
     runs-on: ubuntu-latest
 
     steps:

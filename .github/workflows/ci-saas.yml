@@ -2,7 +2,11 @@ name: CI (Auto)
 
 on:
   push:
+    branches:
+      - self-hosted
   pull_request:
+    branches:
+      - self-hosted
   workflow_dispatch:
 
 permissions:
@@ -11,7 +15,7 @@ permissions:
 jobs:
   detect_edition:
     name: Detect edition
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    if: (github.event_name != 'workflow_dispatch' || github.ref_name == 'self-hosted') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     outputs:
       edition: ${{ steps.detect.outputs.edition }}
