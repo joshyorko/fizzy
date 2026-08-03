@@ -3,6 +3,8 @@ name: CI (OSS)
 on:
   pull_request:
     types: [opened, synchronize]
+    branches:
+      - self-hosted
 
 permissions:
   contents: read

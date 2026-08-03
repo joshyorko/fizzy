@@ -3,9 +3,7 @@ name: Build and publish container image to GHCR
 on:
   push:
     branches:
-      - main
-    tags:
-      - 'v*'
+      - self-hosted
   workflow_dispatch:
 
 concurrency:
@@ -19,6 +17,7 @@ env:
 jobs:
   build:
     name: Build and push image (${{ matrix.arch }})
+    if: github.ref_name == 'self-hosted'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     permissions:
@@ -209,5 +208,4 @@ jobs:
             echo "Signing $tag"
             cosign sign --yes "$tag"
           done <<< "$tags"
-
 

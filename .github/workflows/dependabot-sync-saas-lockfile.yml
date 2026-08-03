@@ -3,7 +3,7 @@ name: Sync Gemfile.saas.lock
 on:
   push:
     branches:
-      - "dependabot/bundler/**"
+      - self-hosted
     paths:
       - Gemfile.lock
 

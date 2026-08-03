@@ -2,6 +2,8 @@ name: CI (SaaS)
 
 on:
   push:
+    branches:
+      - self-hosted
 
 permissions:
   contents: read
