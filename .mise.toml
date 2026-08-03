@@ -1,10 +1,11 @@
-min_version = "2026.7.5"
+min_version = "2026.7.10"
 
 [settings]
 idiomatic_version_file_enable_tools = ["ruby"]
 
 [tools]
 gum = "0.17.0"
+prek = "0.4.11"
 
 [env]
 PROMETHEUS_EXPORTER_URL = "http://127.0.0.1:9306/metrics"
@@ -25,3 +26,4 @@ PROMETHEUS_EXPORTER_URL = "http://127.0.0.1:9306/metrics"
 "pacman:rav1e" = "latest"
 "pacman:svt-av1" = "latest"
 "pacman:gitleaks" = "latest"
+

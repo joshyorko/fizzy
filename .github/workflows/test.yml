@@ -27,7 +27,7 @@ jobs:
 
     services:
       mysql:
-        image: ${{ matrix.db_adapter == 'mysql' && 'mysql:8.0' || '' }}
+        image: ${{ matrix.db_adapter == 'mysql' && 'mysql:8.4' || '' }}
         env:
           MYSQL_ALLOW_EMPTY_PASSWORD: yes
           MYSQL_DATABASE: fizzy_test
