@@ -162,7 +162,7 @@ class McpControllerTest < ActionDispatch::IntegrationTest
       end
 
       assert_response :success
-      assert_equal identities(:jason).email_address, @response.parsed_body.dig("result", "structuredContent", "email")
+      assert_equal identities(:jason).email_address, @response.parsed_body.dig("result", "structuredContent", "email_address")
     end
 
     assert_response :success
