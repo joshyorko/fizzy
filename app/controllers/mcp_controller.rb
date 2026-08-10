@@ -29,7 +29,7 @@ class McpController < ApplicationController
   def create
     message = parsed_message
 
-    if unsupported_protocol_header?
+    if unsupported_protocol_header? || invalid_stateless_headers?
       render status: :bad_request, json: json_rpc_error(json_rpc_id(message), -32602, "Unsupported protocol version")
     elsif mcp_response = mcp_server.handle(message)
       render json: mcp_response
@@ -95,6 +95,14 @@ class McpController < ApplicationController
     def unsupported_protocol_header?
       request.headers["MCP-Protocol-Version"].present? &&
         !Mcp::Server.supports_protocol_version?(request.headers["MCP-Protocol-Version"])
+    end
+
+    def invalid_stateless_headers?
+      if request.headers["MCP-Protocol-Version"] == Mcp::Server::PROTOCOL_VERSION
+        request.headers["Mcp-Method"].blank? || request.headers["Mcp-Name"].blank?
+      else
+        false
+      end
     end
 
     def json_rpc_id(message)
