@@ -16,7 +16,7 @@ ActiveSupport.on_load(:action_text_content) do
     # Use rails_blob_path so edit mode follows Active Storage's configured
     # proxy/redirect route instead of hard-coding a storage route.
     def to_rich_text_attributes(*)
-      super.merge url: Rails.application.routes.url_helpers.rails_blob_path(self, only_path: true)
+      super.merge url: Rails.application.routes.url_helpers.rails_blob_path(self, only_path: true, script_name: Current.account&.slug)
     end
   end
 end
