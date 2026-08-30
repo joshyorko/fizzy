@@ -52,6 +52,8 @@ Rails.application.routes.draw do
     end
   end
 
+  resource :transfer_token, only: :create
+
   resources :boards do
     scope module: :boards do
       resources :accesses, only: :index
@@ -89,7 +91,7 @@ Rails.application.routes.draw do
   end
 
   namespace :columns do
-    resources :cards do
+    resources :cards, only: [] do
       scope module: :cards do
         namespace :drops do
           resource :not_now
