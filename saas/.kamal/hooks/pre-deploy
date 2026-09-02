@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "$0")/../../.." && pwd)"
+
+# A deploy never touches an accessory, so the cell can be older than the app that expects it.
+if [ -z "${SKIP_HOTCELL_CHECKS:-}" ]; then
+    "$repo_root/saas/hotcell/bin/check" "${KAMAL_DESTINATION:-production}"
+fi
