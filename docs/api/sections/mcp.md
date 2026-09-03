@@ -1,6 +1,6 @@
 # MCP
 
-Fizzy exposes an MCP endpoint at `/mcp`. It uses OAuth bearer tokens and JSON-RPC 2.0 over HTTP POST.
+Fizzy exposes an MCP endpoint at `/mcp`. It uses OAuth bearer tokens and the stateless MCP `2026-07-28` protocol over HTTP POST. Requests do not use `Mcp-Session-Id` or require sticky sessions; send `MCP-Protocol-Version`, `Mcp-Method`, and `Mcp-Name` headers on stateless requests. Capabilities can be queried with `server/discover`.
 
 ## Scopes
 
