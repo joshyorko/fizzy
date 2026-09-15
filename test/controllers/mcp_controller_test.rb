@@ -25,7 +25,7 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     discovery = @response.parsed_body
     assert_equal "Fizzy", discovery["title"]
-    assert_equal "2025-11-25", discovery["protocolVersion"]
+    assert_equal "2026-07-28", discovery["protocolVersion"]
     assert discovery.dig("capabilities", "tools").present?
     assert discovery.dig("capabilities", "resources").present?
     assert_equal oauth_authorization_server_url(script_name: nil), discovery["authorization_server"]
@@ -126,6 +126,43 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     untenanted do
       post mcp_path, params: json_rpc("initialize", params: { protocolVersion: "2024-11-05" }).to_json,
         headers: json_headers(@read_token)
+    end
+
+    test "stateless requests can discover capabilities without a session" do
+      untenanted do
+        post mcp_path,
+          params: json_rpc("server/discover").to_json,
+          headers: json_headers(@read_token).merge(
+            "MCP-Protocol-Version" => "2026-07-28",
+            "Mcp-Method" => "server/discover",
+            "Mcp-Name" => "server/discover"
+          )
+      end
+
+      assert_response :success
+      assert_equal "2026-07-28", @response.parsed_body.dig("result", "protocolVersion")
+    end
+
+    test "stateless requests can cross independent server instances" do
+      headers = json_headers(@read_token).merge(
+        "MCP-Protocol-Version" => "2026-07-28",
+        "Mcp-Method" => "tools/call",
+        "Mcp-Name" => "account_list"
+      )
+
+      untenanted do
+        post mcp_path, params: tool_call("account_list").to_json, headers: headers
+      end
+
+      assert_response :success
+      assert_kind_of Array, @response.parsed_body.dig("result", "structuredContent", "accounts")
+
+      untenanted do
+        post mcp_path, params: tool_call("identity_show").to_json, headers: headers.merge("Mcp-Name" => "identity_show")
+      end
+
+      assert_response :success
+      assert_equal identities(:jason).email_address, @response.parsed_body.dig("result", "structuredContent", "email_address")
     end
 
     assert_response :success
