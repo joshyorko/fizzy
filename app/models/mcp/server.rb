@@ -1,6 +1,6 @@
 class Mcp::Server
-  PROTOCOL_VERSION = "2025-11-25"
-  SUPPORTED_PROTOCOL_VERSIONS = [ PROTOCOL_VERSION, "2025-06-18" ].freeze
+  PROTOCOL_VERSION = "2026-07-28"
+  SUPPORTED_PROTOCOL_VERSIONS = [ PROTOCOL_VERSION, "2025-11-25", "2025-06-18" ].freeze
 
   def initialize(access_token:, url_context:, auth_challenge: nil)
     @access_token = access_token
@@ -40,6 +40,8 @@ class Mcp::Server
       return error(message["id"], -32600, "Invalid Request") unless message["jsonrpc"] == "2.0" && message["method"].present?
 
       case message["method"]
+      when "server/discover"
+        response(message["id"], discovery_result)
       when "initialize"
         protocol_version = message.dig("params", "protocolVersion")
 
@@ -51,13 +53,13 @@ class Mcp::Server
       when "ping"
         response(message["id"], {})
       when "tools/list"
-        response(message["id"], { tools: Mcp::Toolbox.tool_definitions })
+        response(message["id"], list_result(tools: Mcp::Toolbox.tool_definitions.sort_by { |tool| tool[:name] }))
       when "tools/call"
         response(message["id"], toolbox.call(message.dig("params", "name"), message.dig("params", "arguments") || {}))
       when "resources/list"
-        response(message["id"], { resources: resources.list })
+        response(message["id"], list_result(resources: resources.list.sort_by { |resource| resource[:uri] }))
       when "resources/read"
-        response(message["id"], resources.read(message.dig("params", "uri")))
+        response(message["id"], resources.read(message.dig("params", "uri")).merge(ttlMs: 60_000, cacheScope: "private"))
       else
         error(message["id"], -32601, "Method not found")
       end
@@ -80,6 +82,14 @@ class Mcp::Server
         },
         serverInfo: { name: "fizzy", title: "Fizzy", version: "1.0.0" }
       }
+    end
+
+    def discovery_result
+      initialize_result(PROTOCOL_VERSION)
+    end
+
+    def list_result(payload)
+      payload.merge(ttlMs: 60_000, cacheScope: "private")
     end
 
     def negotiated_protocol_version(protocol_version)
