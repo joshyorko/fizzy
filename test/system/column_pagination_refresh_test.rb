@@ -24,6 +24,8 @@ class ColumnPaginationRefreshTest < ApplicationSystemTestCase
     wait_for_cable_subscriptions
     add_card_to_column "Added elsewhere"
     @board.broadcast_refresh
+    added_title = find("##{dom_id(@column)} .card__title", text: "Added elsewhere", visible: :all, wait: PAGE_LOAD_WAIT)
+    page.execute_script("arguments[0].scrollIntoView()", added_title)
     assert_text "Added elsewhere", wait: PAGE_LOAD_WAIT
 
     scroll_column_to_bottom

@@ -32,11 +32,11 @@ class McpController < ApplicationController
     response.headers["Cache-Control"] = "no-store"
 
     if unsupported_protocol_header?
-      error = json_rpc_error(json_rpc_id(message), -32022, "Unsupported protocol version")
+      error = json_rpc_error(json_rpc_id(message), -32022, "Unsupported protocol version", modern: true)
       error[:error][:data] = { requested: request.headers["MCP-Protocol-Version"], supported: Mcp::Server::SUPPORTED_PROTOCOL_VERSIONS }
       render status: :bad_request, json: error
     elsif validation_error = stateless_request_error(message)
-      render status: :bad_request, json: json_rpc_error(json_rpc_id(message), *validation_error)
+      render status: :bad_request, json: json_rpc_error(json_rpc_id(message), *validation_error, modern: true)
     elsif mcp_response = mcp_server.handle(message)
       status = modern_protocol? && mcp_response.dig(:error, :code) == -32601 ? :not_found : :ok
       render status: status, json: mcp_response
@@ -96,8 +96,10 @@ class McpController < ApplicationController
       JSON.parse(request.raw_post)
     end
 
-    def json_rpc_error(id, code, message)
-      { jsonrpc: "2.0", id: id, error: { code: code, message: message } }
+    def json_rpc_error(id, code, message, modern: modern_protocol?)
+      { jsonrpc: "2.0", id: id, error: { code: code, message: message } }.tap do |payload|
+        payload.delete(:id) if modern && id.nil?
+      end
     end
 
     def unsupported_protocol_header?
@@ -113,12 +115,14 @@ class McpController < ApplicationController
       params = message["params"] if message.is_a?(Hash)
       metadata = params["_meta"] if params.is_a?(Hash)
       body_version = metadata["io.modelcontextprotocol/protocolVersion"] if metadata.is_a?(Hash)
-      return unless modern_protocol? || body_version.present?
+      has_protocol_metadata = metadata.is_a?(Hash) &&
+        (metadata.key?("io.modelcontextprotocol/protocolVersion") || metadata.key?("io.modelcontextprotocol/clientCapabilities"))
+      return unless modern_protocol? || has_protocol_metadata
 
       unless message.is_a?(Hash) && message["jsonrpc"] == "2.0" && message["method"].is_a?(String)
         return [ -32600, "Invalid Request" ]
       end
-      if message.key?("id") && !message["id"].is_a?(String) && !message["id"].is_a?(Numeric)
+      unless message["id"].is_a?(String) || message["id"].is_a?(Numeric)
         return [ -32600, "Invalid Request" ]
       end
       return [ -32602, "Invalid request metadata" ] unless params.is_a?(Hash) && metadata.is_a?(Hash)

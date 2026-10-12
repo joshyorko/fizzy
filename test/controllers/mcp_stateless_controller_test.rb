@@ -127,7 +127,23 @@ class McpStatelessControllerTest < ActionDispatch::IntegrationTest
       assert_response :bad_request
       assert_equal(-32600, response.parsed_body.dig("error", "code"))
       assert_nil response.parsed_body["id"]
+      assert_not response.parsed_body.key?("id")
     end
+  end
+
+  test "modern tool calls require a request ID" do
+    params = { name: "card_create", arguments: {
+      account_id: accounts(:"37s").external_account_id.to_s, board_id: boards(:writebook).id, title: "Must not run"
+    } }
+    assert_no_difference "Card.count" do
+      untenanted do
+        post mcp_path, params: request_body("tools/call", params).except(:id).to_json,
+          headers: request_headers("tools/call", params)
+      end
+    end
+    assert_response :bad_request
+    assert_equal(-32600, response.parsed_body.dig("error", "code"))
+    assert_not response.parsed_body.key?("id")
   end
 
   test "unsupported version errors advertise supported versions" do

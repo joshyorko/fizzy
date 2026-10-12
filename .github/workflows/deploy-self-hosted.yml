@@ -86,7 +86,7 @@ jobs:
 
       - name: Set up Ruby on runner
         shell: bash
-        run: |
+        run: | # zizmor: ignore[adhoc-packages] -- Bootstrap the exact Bundler version recorded in Gemfile.lock.
           set -euo pipefail
           ruby_version="$(tr -d '\n' < .ruby-version)"
           runner_home="$(getent passwd "$(id -un)" | cut -d: -f6)"
@@ -110,7 +110,7 @@ jobs:
           bundler_version="$(awk '/^BUNDLED WITH$/ { getline; gsub(/[[:space:]]/, ""); print; exit }' Gemfile.lock)"
           test -n "$bundler_version"
           if ! bundle "_${bundler_version}_" -v >/dev/null 2>&1; then
-            gem install bundler -v "$bundler_version" --no-document # zizmor: ignore[adhoc-packages] -- Bootstrap the exact version recorded in Gemfile.lock.
+            gem install bundler -v "$bundler_version" --no-document
             rbenv rehash
           fi
           bundle -v
