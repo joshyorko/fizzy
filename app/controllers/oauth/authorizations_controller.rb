@@ -20,7 +20,7 @@ class Oauth::AuthorizationsController < Oauth::BaseController
       resource: @resource
     )
 
-    redirect_to redirect_uri_with(code: authorization_code.code, state: @state), allow_other_host: true
+    redirect_to redirect_uri_with(code: authorization_code.code, state: @state, iss: issuer_url), allow_other_host: true
   end
 
   private

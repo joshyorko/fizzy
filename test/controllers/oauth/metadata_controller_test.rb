@@ -26,6 +26,7 @@ class Oauth::MetadataControllerTest < ActionDispatch::IntegrationTest
     assert_equal oauth_register_url(script_name: nil), metadata["registration_endpoint"]
     assert_equal [ "S256" ], metadata["code_challenge_methods_supported"]
     assert_equal [ "none" ], metadata["token_endpoint_auth_methods_supported"]
+    assert_equal true, metadata["authorization_response_iss_parameter_supported"]
   end
 
   test "openid configuration advertises the authorization server metadata" do

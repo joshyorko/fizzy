@@ -25,7 +25,7 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     discovery = @response.parsed_body
     assert_equal "Fizzy", discovery["title"]
-    assert_equal "2025-11-25", discovery["protocolVersion"]
+    assert_equal "2026-07-28", discovery["protocolVersion"]
     assert discovery.dig("capabilities", "tools").present?
     assert discovery.dig("capabilities", "resources").present?
     assert_equal oauth_authorization_server_url(script_name: nil), discovery["authorization_server"]
@@ -140,7 +140,7 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :bad_request
-    assert_equal -32602, @response.parsed_body.dig("error", "code")
+    assert_equal -32022, @response.parsed_body.dig("error", "code")
   end
 
   test "read token cannot call write tool" do
@@ -644,7 +644,6 @@ class McpControllerTest < ActionDispatch::IntegrationTest
 
   test "search and fetch return company knowledge compatible payloads" do
     cards(:logo).update!(description: "The mark should be larger.")
-    cards(:logo).reindex
 
     untenanted do
       post mcp_path,
@@ -668,6 +667,47 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_equal cards(:logo).id, fetched["id"]
     assert_equal cards(:logo).title, fetched["title"]
     assert fetched["metadata"].present?
+  end
+
+  test "search finds comment matches and returns each card once" do
+    card = cards(:logo)
+    2.times { card.comments.create!(body: "quartzfalcon", creator: users(:david)) }
+
+    untenanted do
+      post mcp_path, params: tool_call("search", account_id: @account_id, query: "quartzfalcon").to_json,
+        headers: json_headers(@write_token)
+    end
+
+    assert_response :success
+    assert_equal [ card.id ], @response.parsed_body.dig("result", "structuredContent", "results").pluck("id")
+  end
+
+  test "search excludes inaccessible boards and other accounts" do
+    cards(:logo).update!(description: "quartzfalcon")
+    Current.with(user: users(:kevin)) do
+      boards(:private).cards.create!(title: "quartzfalcon", status: "published", creator: users(:kevin))
+    end
+    cards(:radio).update!(description: "quartzfalcon")
+
+    untenanted do
+      post mcp_path, params: tool_call("search", account_id: @account_id, query: "quartzfalcon").to_json,
+        headers: json_headers(@write_token)
+    end
+
+    assert_response :success
+    assert_equal [ cards(:logo).id ], @response.parsed_body.dig("result", "structuredContent", "results").pluck("id")
+  end
+
+  test "search preserves substring fallback without an account argument" do
+    cards(:logo).update!(description: "quartzfalcon")
+
+    untenanted do
+      post mcp_path, params: tool_call("search", query: "artzfal").to_json,
+        headers: json_headers(@write_token)
+    end
+
+    assert_response :success
+    assert_equal [ cards(:logo).id ], @response.parsed_body.dig("result", "structuredContent", "results").pluck("id")
   end
 
   private

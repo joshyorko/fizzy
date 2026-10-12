@@ -83,7 +83,7 @@ jobs:
     needs:
       - prepare
       - build
-    uses: ./.github/workflows/deploy-self-hosted.yml
+    uses: $/.github/workflows/deploy-self-hosted.yml
     permissions:
       contents: read
       packages: read
