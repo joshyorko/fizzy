@@ -5,13 +5,28 @@ class Account::DataTransfer::RecordSetTest < ActiveSupport::TestCase
     @importable_model_names = %w[ Card Board Event ]
   end
 
+  test "import ends a batch once its entries add up to the byte limit" do
+    tags = 5.times.map { |i| { "id" => "tag#{i}", "title" => "a" * 100 } }
+    entry_size = tags.first.to_json.bytesize
+
+    record_set = Account::DataTransfer::RecordSet.new(account: importing_account, model: Tag)
+    record_set.stubs(:import_batch)
+    batches = []
+
+    stub_const(Account::DataTransfer::RecordSet, :IMPORT_BATCH_BYTES, entry_size * 3) do
+      record_set.import(from: build_reader(dir: "tags", data: tags), callback: ->(record_set:, files:) { batches << files.size })
+    end
+
+    assert_equal [ 3, 2 ], batches
+  end
+
   test "check rejects polymorphic type not in the importable models allowlist" do
     event_data = build_event_data(eventable_type: "Identity")
 
     record_set = Account::DataTransfer::RecordSet.new(account: importing_account, model: Event, importable_model_names: @importable_model_names)
 
     error = assert_raises(Account::DataTransfer::RecordSet::IntegrityError) do
-      record_set.check(from: build_reader(dir: "events", data: event_data))
+      record_set.check(from: build_reader(dir: "events", data: event_data, users: [ exported_user_data ]))
     end
 
     assert_match(/unrecognized.*type/i, error.message)
@@ -23,7 +38,7 @@ class Account::DataTransfer::RecordSetTest < ActiveSupport::TestCase
     record_set = Account::DataTransfer::RecordSet.new(account: importing_account, model: Event, importable_model_names: @importable_model_names)
 
     error = assert_raises(Account::DataTransfer::RecordSet::IntegrityError) do
-      record_set.check(from: build_reader(dir: "events", data: event_data))
+      record_set.check(from: build_reader(dir: "events", data: event_data, users: [ exported_user_data ]))
     end
 
     assert_match(/unrecognized.*type/i, error.message)
@@ -35,7 +50,7 @@ class Account::DataTransfer::RecordSetTest < ActiveSupport::TestCase
     record_set = Account::DataTransfer::RecordSet.new(account: importing_account, model: Event, importable_model_names: @importable_model_names)
 
     error = assert_raises(Account::DataTransfer::RecordSet::IntegrityError) do
-      record_set.check(from: build_reader(dir: "events", data: event_data))
+      record_set.check(from: build_reader(dir: "events", data: event_data, users: [ exported_user_data ]))
     end
 
     assert_match(/unrecognized.*type/i, error.message)
@@ -47,8 +62,102 @@ class Account::DataTransfer::RecordSetTest < ActiveSupport::TestCase
     record_set = Account::DataTransfer::RecordSet.new(account: importing_account, model: Event, importable_model_names: @importable_model_names)
 
     assert_nothing_raised do
+      record_set.check(from: build_reader(dir: "events", data: event_data, users: [ exported_user_data ]))
+    end
+  end
+
+  test "check rejects a record whose creator is not a user in the export" do
+    event_data = build_event_data(eventable_type: "Card")
+
+    record_set = Account::DataTransfer::RecordSet.new(account: importing_account, model: Event, importable_model_names: @importable_model_names)
+
+    error = assert_raises(Account::DataTransfer::RecordSet::IntegrityError) do
       record_set.check(from: build_reader(dir: "events", data: event_data))
     end
+
+    assert_match(/creator .* not a user in the export/i, error.message)
+  end
+
+  test "check rejects a unique key that already exists in the destination database" do
+    existing = boards(:writebook).create_publication!
+    publication_data = build_publication_data(key: existing.key)
+
+    error = assert_raises(Account::DataTransfer::RecordSet::ConflictError) do
+      publication_record_set.check(from: build_reader(dir: "board_publications", data: publication_data))
+    end
+
+    assert_match(/key .* already exists/i, error.message)
+  end
+
+  test "check rejects a unique key that repeats within the export" do
+    key = SecureRandom.base58(24)
+    publication_data = [ build_publication_data(key: key), build_publication_data(key: key) ]
+
+    error = assert_raises(Account::DataTransfer::RecordSet::ConflictError) do
+      publication_record_set.check(from: build_reader(dir: "board_publications", data: publication_data))
+    end
+
+    assert_match(/appears more than once/i, error.message)
+  end
+
+  test "check rejects a blank unique key" do
+    publication_data = build_publication_data(key: nil)
+
+    error = assert_raises(Account::DataTransfer::RecordSet::IntegrityError) do
+      publication_record_set.check(from: build_reader(dir: "board_publications", data: publication_data))
+    end
+
+    assert_match(/key must be present/i, error.message)
+    assert_not error.is_a?(Account::DataTransfer::RecordSet::ConflictError)
+  end
+
+  test "check accepts a fresh unique key" do
+    boards(:writebook).create_publication!
+    publication_data = build_publication_data(key: SecureRandom.base58(24))
+
+    assert_nothing_raised do
+      publication_record_set.check(from: build_reader(dir: "board_publications", data: publication_data))
+    end
+  end
+
+  test "import converts a duplicate-key constraint violation to a conflict error" do
+    existing = boards(:writebook).create_publication!
+    publication_data = build_publication_data(key: existing.key)
+
+    error = assert_raises(Account::DataTransfer::RecordSet::ConflictError) do
+      publication_record_set.import(from: build_reader(dir: "board_publications", data: publication_data))
+    end
+
+    assert_match(/uniqueness constraint/i, error.message)
+    assert_not Board::Publication.exists?(id: publication_data["id"])
+  end
+
+  test "import converts a constraint violation raised by an overridden import_batch to a conflict error" do
+    existing = boards(:writebook).create_publication!
+    publication_data = build_publication_data(key: existing.key)
+
+    subclass = Class.new(Account::DataTransfer::RecordSet) do
+      private
+        def import_batch(files)
+          batch_data = files.map { |file| load(file).merge("account_id" => account.id) }
+          model.insert_all!(batch_data)
+        end
+    end
+    record_set = subclass.new(account: importing_account, model: Board::Publication, unique_keys: %w[ key ])
+
+    error = assert_raises(Account::DataTransfer::RecordSet::ConflictError) do
+      record_set.import(from: build_reader(dir: "board_publications", data: publication_data))
+    end
+
+    assert_match(/uniqueness constraint/i, error.message)
+  end
+
+  test "import inserts a publication when its key is unique" do
+    publication_data = build_publication_data(key: SecureRandom.base58(24))
+
+    publication_record_set.import(from: build_reader(dir: "board_publications", data: publication_data))
+
+    assert Board::Publication.exists?(id: publication_data["id"], key: publication_data["key"])
   end
 
   private
@@ -61,7 +170,7 @@ class Account::DataTransfer::RecordSetTest < ActiveSupport::TestCase
         "id" => "test_event_id_12345678901234",
         "account_id" => "nonexistent_account_id_1234567",
         "board_id" => "nonexistent_board_id_12345678",
-        "creator_id" => "nonexistent_user_id_123456789",
+        "creator_id" => exported_user_data["id"],
         "eventable_type" => eventable_type,
         "eventable_id" => "nonexistent_id_1234567890123",
         "action" => "created",
@@ -71,12 +180,39 @@ class Account::DataTransfer::RecordSetTest < ActiveSupport::TestCase
       }
     end
 
-    def build_reader(dir:, data:)
+    def publication_record_set
+      Account::DataTransfer::RecordSet.new(account: importing_account, model: Board::Publication, unique_keys: %w[ key ])
+    end
+
+    def build_publication_data(key:)
+      {
+        "id" => ActiveRecord::Type::Uuid.generate,
+        "account_id" => ActiveRecord::Type::Uuid.generate,
+        "board_id" => ActiveRecord::Type::Uuid.generate,
+        "key" => key,
+        "created_at" => Time.current.iso8601,
+        "updated_at" => Time.current.iso8601
+      }
+    end
+
+    def exported_user_data
+      @exported_user_data ||= {
+        "id" => ActiveRecord::Type::Uuid.generate,
+        "name" => "Exported User"
+      }
+    end
+
+    def build_reader(dir:, data:, users: [])
       tempfile = Tempfile.new([ "import_test", ".zip" ])
       tempfile.binmode
 
       writer = ZipFile::Writer.new(tempfile)
-      writer.add_file("data/#{dir}/#{data['id']}.json", data.to_json)
+      Array.wrap(data).each do |record_data|
+        writer.add_file("data/#{dir}/#{record_data['id']}.json", record_data.to_json)
+      end
+      users.each do |user_data|
+        writer.add_file("data/users/#{user_data['id']}.json", user_data.to_json)
+      end
       writer.close
       tempfile.rewind
 

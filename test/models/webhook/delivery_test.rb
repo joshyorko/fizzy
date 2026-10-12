@@ -115,6 +115,21 @@ class Webhook::DeliveryTest < ActiveSupport::TestCase
     assert delivery.succeeded?
   end
 
+  test "deliver a comment whose body has a content attachment" do
+    comment = comments(:layout_overflowing_david)
+    comment.update! body: %(<action-text-attachment content-type="text/html" content="&lt;p&gt;Embedded content&lt;/p&gt;"></action-text-attachment>)
+    delivery = Webhook::Delivery.create!(webhook: webhooks(:active), event: events(:layout_commented))
+
+    request_stub = stub_request(:post, delivery.webhook.url)
+      .with { |request| JSON.parse(request.body).dig("eventable", "body", "html").include?("Embedded content") }
+      .to_return(status: 200, headers: { "content-type" => "application/json" })
+
+    delivery.deliver
+
+    assert_requested request_stub
+    assert_equal "completed", delivery.state
+  end
+
   test "deliver when the network timeouts" do
     delivery = webhook_deliveries(:pending)
     stub_request(:post, delivery.webhook.url).to_timeout
@@ -461,11 +476,34 @@ class Webhook::DeliveryTest < ActiveSupport::TestCase
     http_mock.stubs(:read_timeout=)
     http_mock.stubs(:request).yields(response_mock).returns(response_mock)
 
-    Net::HTTP.expects(:new).with("example.com", 443).returns(http_mock)
+    Net::HTTP.expects(:new).with("example.com", 443, nil).returns(http_mock)
 
     delivery.deliver
 
     assert delivery.succeeded?
+  end
+
+  test "connects to the pinned IP address even when a proxy is configured" do
+    webhook = Webhook.create!(
+      board: boards(:writebook),
+      name: "Proxied",
+      url: "http://example.com/webhook"
+    )
+    delivery = Webhook::Delivery.create!(webhook: webhook, event: events(:layout_commented))
+
+    saved = ENV.slice("http_proxy", "HTTP_PROXY", "no_proxy", "NO_PROXY")
+    %w[ no_proxy NO_PROXY ].each { |key| ENV.delete(key) }
+    %w[ http_proxy HTTP_PROXY ].each { |key| ENV[key] = "http://proxy.internal:3128" }
+
+    TCPSocket.expects(:open).with { |*args, **| args.first == "proxy.internal" }.never
+    TCPSocket.expects(:open).with { |*args, **| args.first == PUBLIC_TEST_IP && args[1] == 80 }.throws(:not_proxied)
+
+    assert_throws :not_proxied do
+      delivery.deliver
+    end
+  ensure
+    %w[ http_proxy HTTP_PROXY no_proxy NO_PROXY ].each { |key| ENV.delete(key) }
+    saved.each { |key, value| ENV[key] = value }
   end
 
   test "handles response too large error" do
