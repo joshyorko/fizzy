@@ -14,6 +14,7 @@ class Oauth::MetadataController < Oauth::BaseController
   def authorization_server
     render json: {
       issuer: issuer_url,
+      authorization_response_iss_parameter_supported: true,
       authorization_endpoint: oauth_authorize_url(script_name: nil),
       token_endpoint: oauth_token_url(script_name: nil),
       revocation_endpoint: oauth_revoke_url(script_name: nil),

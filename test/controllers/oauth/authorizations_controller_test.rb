@@ -32,6 +32,9 @@ class Oauth::AuthorizationsControllerTest < ActionDispatch::IntegrationTest
     assert_equal identities(:david), authorization_code.identity
     assert_equal "read write", authorization_code.scope
     assert authorization_code.expires_at.future?
+    callback = Rack::Utils.parse_query(URI.parse(response.location).query)
+    assert_equal root_url(script_name: nil).delete_suffix("/"), callback["iss"]
+    assert_equal authorization_params[:state], callback["state"]
   end
 
   test "consent accepts Codex loopback callback without resource parameter" do

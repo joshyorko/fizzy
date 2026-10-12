@@ -107,8 +107,10 @@ jobs:
           rbenv shell "$ruby_version"
           rbenv rehash
           ruby -v
-          if ! bundle _2.6.9_ -v >/dev/null 2>&1; then
-            gem install bundler -v 2.6.9 --no-document
+          bundler_version="$(awk '/^BUNDLED WITH$/ { getline; gsub(/[[:space:]]/, ""); print; exit }' Gemfile.lock)"
+          test -n "$bundler_version"
+          if ! bundle "_${bundler_version}_" -v >/dev/null 2>&1; then
+            gem install bundler -v "$bundler_version" --no-document # zizmor: ignore[adhoc-packages] -- Bootstrap the exact version recorded in Gemfile.lock.
             rbenv rehash
           fi
           bundle -v

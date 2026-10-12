@@ -1,11 +1,13 @@
 class Mcp::Server
   PROTOCOL_VERSION = "2026-07-28"
-  SUPPORTED_PROTOCOL_VERSIONS = [ PROTOCOL_VERSION, "2025-11-25", "2025-06-18" ].freeze
+  LEGACY_PROTOCOL_VERSION = "2025-11-25"
+  SUPPORTED_PROTOCOL_VERSIONS = [ PROTOCOL_VERSION, LEGACY_PROTOCOL_VERSION, "2025-06-18" ].freeze
 
-  def initialize(access_token:, url_context:, auth_challenge: nil)
+  def initialize(access_token:, url_context:, auth_challenge: nil, protocol_version: LEGACY_PROTOCOL_VERSION)
     @access_token = access_token
     @url_context = url_context
     @auth_challenge = auth_challenge
+    @protocol_version = protocol_version
   end
 
   def self.supports_protocol_version?(protocol_version)
@@ -38,6 +40,8 @@ class Mcp::Server
 
     def dispatch(message)
       return error(message["id"], -32600, "Invalid Request") unless message["jsonrpc"] == "2.0" && message["method"].present?
+      return error(message["id"], -32602, "Invalid params") if message.key?("params") && !message["params"].is_a?(Hash)
+      return error(message["id"], -32601, "Method not found") if modern_protocol? && message["method"].in?(%w[ initialize ping ])
 
       case message["method"]
       when "server/discover"
@@ -53,20 +57,21 @@ class Mcp::Server
       when "ping"
         response(message["id"], {})
       when "tools/list"
-        response(message["id"], list_result(tools: Mcp::Toolbox.tool_definitions.sort_by { |tool| tool[:name] }))
+        response(message["id"], list_result({ tools: Mcp::Toolbox.tool_definitions.sort_by { |tool| tool[:name] } }))
       when "tools/call"
         response(message["id"], toolbox.call(message.dig("params", "name"), message.dig("params", "arguments") || {}))
       when "resources/list"
-        response(message["id"], list_result(resources: resources.list.sort_by { |resource| resource[:uri] }))
+        response(message["id"], list_result({ resources: resources.list.sort_by { |resource| resource[:uri] } }, ttl: 0))
       when "resources/read"
-        response(message["id"], resources.read(message.dig("params", "uri")).merge(ttlMs: 60_000, cacheScope: "private"))
+        response(message["id"], list_result(resources.read(message.dig("params", "uri")), ttl: 0))
       else
         error(message["id"], -32601, "Method not found")
       end
     rescue Mcp::Toolbox::Forbidden => exception
       response(message["id"], tool_error_result(exception.message, www_authenticate: @auth_challenge))
     rescue Mcp::Toolbox::Error => exception
-      error(message["id"], exception.code, exception.message)
+      code = modern_protocol? && exception.is_a?(Mcp::Resources::Error) ? -32602 : exception.code
+      error(message["id"], code, exception.message)
     rescue ActiveRecord::RecordNotFound
       error(message["id"], -32004, "Not found")
     rescue ActiveRecord::RecordInvalid => exception
@@ -85,15 +90,19 @@ class Mcp::Server
     end
 
     def discovery_result
-      initialize_result(PROTOCOL_VERSION)
+      list_result({ supportedVersions: SUPPORTED_PROTOCOL_VERSIONS, capabilities: initialize_result(PROTOCOL_VERSION)[:capabilities] })
     end
 
-    def list_result(payload)
-      payload.merge(ttlMs: 60_000, cacheScope: "private")
+    def list_result(payload, ttl: 60_000)
+      modern_protocol? ? payload.merge(ttlMs: ttl, cacheScope: "private") : payload
     end
 
     def negotiated_protocol_version(protocol_version)
-      protocol_version.presence || PROTOCOL_VERSION
+      protocol_version.presence || LEGACY_PROTOCOL_VERSION
+    end
+
+    def modern_protocol?
+      @protocol_version == PROTOCOL_VERSION
     end
 
     def toolbox
@@ -105,6 +114,11 @@ class Mcp::Server
     end
 
     def response(id, result)
+      if modern_protocol?
+        result = result.merge(resultType: "complete", _meta: (result[:_meta] || {}).merge(
+          "io.modelcontextprotocol/serverInfo" => { name: "fizzy", title: "Fizzy", version: "1.0.0" }
+        ))
+      end
       { jsonrpc: "2.0", id: id, result: result }
     end
 

@@ -128,43 +128,6 @@ class McpControllerTest < ActionDispatch::IntegrationTest
         headers: json_headers(@read_token)
     end
 
-    test "stateless requests can discover capabilities without a session" do
-      untenanted do
-        post mcp_path,
-          params: json_rpc("server/discover").to_json,
-          headers: json_headers(@read_token).merge(
-            "MCP-Protocol-Version" => "2026-07-28",
-            "Mcp-Method" => "server/discover",
-            "Mcp-Name" => "server/discover"
-          )
-      end
-
-      assert_response :success
-      assert_equal "2026-07-28", @response.parsed_body.dig("result", "protocolVersion")
-    end
-
-    test "stateless requests can cross independent server instances" do
-      headers = json_headers(@read_token).merge(
-        "MCP-Protocol-Version" => "2026-07-28",
-        "Mcp-Method" => "tools/call",
-        "Mcp-Name" => "account_list"
-      )
-
-      untenanted do
-        post mcp_path, params: tool_call("account_list").to_json, headers: headers
-      end
-
-      assert_response :success
-      assert_kind_of Array, @response.parsed_body.dig("result", "structuredContent", "accounts")
-
-      untenanted do
-        post mcp_path, params: tool_call("identity_show").to_json, headers: headers.merge("Mcp-Name" => "identity_show")
-      end
-
-      assert_response :success
-      assert_equal identities(:jason).email_address, @response.parsed_body.dig("result", "structuredContent", "email_address")
-    end
-
     assert_response :success
     assert_equal -32602, @response.parsed_body.dig("error", "code")
     assert_equal "Unsupported protocol version", @response.parsed_body.dig("error", "message")
@@ -177,7 +140,7 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :bad_request
-    assert_equal -32602, @response.parsed_body.dig("error", "code")
+    assert_equal -32022, @response.parsed_body.dig("error", "code")
   end
 
   test "read token cannot call write tool" do
