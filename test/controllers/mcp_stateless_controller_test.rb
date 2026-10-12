@@ -107,6 +107,29 @@ class McpStatelessControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "modern requests require protocol version metadata" do
+    post_request "tools/list", { _meta: metadata.except("io.modelcontextprotocol/protocolVersion") }
+    assert_response :bad_request
+    assert_equal(-32602, response.parsed_body.dig("error", "code"))
+  end
+
+  test "invalid modern request IDs cannot execute writes" do
+    [ {}, false, [], nil ].each do |id|
+      params = { name: "card_create", arguments: {
+        account_id: accounts(:"37s").external_account_id.to_s, board_id: boards(:writebook).id, title: "Must not run"
+      } }
+      assert_no_difference "Card.count" do
+        untenanted do
+          post mcp_path, params: request_body("tools/call", params).merge(id: id).to_json,
+            headers: request_headers("tools/call", params)
+        end
+      end
+      assert_response :bad_request
+      assert_equal(-32600, response.parsed_body.dig("error", "code"))
+      assert_nil response.parsed_body["id"]
+    end
+  end
+
   test "unsupported version errors advertise supported versions" do
     post_request "tools/list", {}, headers: { "MCP-Protocol-Version" => "2099-01-01" }
     assert_response :bad_request

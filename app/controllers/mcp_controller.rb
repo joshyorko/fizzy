@@ -118,7 +118,11 @@ class McpController < ApplicationController
       unless message.is_a?(Hash) && message["jsonrpc"] == "2.0" && message["method"].is_a?(String)
         return [ -32600, "Invalid Request" ]
       end
+      if message.key?("id") && !message["id"].is_a?(String) && !message["id"].is_a?(Numeric)
+        return [ -32600, "Invalid Request" ]
+      end
       return [ -32602, "Invalid request metadata" ] unless params.is_a?(Hash) && metadata.is_a?(Hash)
+      return [ -32602, "Protocol version metadata is required" ] unless body_version.is_a?(String) && body_version.present?
 
       unless modern_protocol? && body_version == request.headers["MCP-Protocol-Version"] &&
           message["method"] == request.headers["Mcp-Method"]
@@ -153,6 +157,7 @@ class McpController < ApplicationController
     end
 
     def json_rpc_id(message)
-      message["id"] if message.is_a?(Hash)
+      id = message["id"] if message.is_a?(Hash)
+      id if id.is_a?(String) || id.is_a?(Numeric)
     end
 end
