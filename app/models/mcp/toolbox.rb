@@ -567,7 +567,7 @@ class Mcp::Toolbox
     end
 
     def search_cards(user, query, limit)
-      search_records = Search::Record.for(user.account_id).search(query, user: user).limit(limit)
+      search_records = user.search(query).limit(limit).results
       cards = search_records.map(&:card).uniq
       cards = fallback_search_cards(user, query, limit) if cards.empty?
       cards.map { |card| [ user.account, card ] }
